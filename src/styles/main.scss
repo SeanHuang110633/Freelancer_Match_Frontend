@@ -1,0 +1,24 @@
+/* 全局樣式 */
+
+/* 重設基本邊距並設定背景色 */
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #f4f5f7; /* 淺灰色背景 */
+  font-family: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB",
+    "Microsoft YaHei", "微软雅黑", Arial, sans-serif;
+}
+
+/* 確保容器佔滿全高，以便 ElRow 垂直置中 */
+html,
+body,
+#app,
+.el-container,
+.el-main {
+  height: 100%;
+}
+
+/* 移除 ElMain 的預設 padding，讓我們的 View 自行控制 */
+.el-main {
+  padding: 0;
+}
