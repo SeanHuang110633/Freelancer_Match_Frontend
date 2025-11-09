@@ -43,6 +43,35 @@
             </div>
           </el-card>
         </div>
+        <!-- pagination for jobs -->
+        <div
+          v-if="authStore.userRole === '自由工作者'"
+          style="
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 20px;
+          "
+        >
+          <el-button
+            size="small"
+            @click="loadJobPage(Math.max(0, jobOffset - jobLimit))"
+            :disabled="jobOffset === 0 || isRecoLoading"
+            :loading="isRecoLoading"
+            >Prev</el-button
+          >
+          <span
+            >Page: {{ Math.floor(jobOffset / jobLimit) + 1 }} /
+            {{ Math.max(1, Math.ceil(jobTotal / jobLimit)) }}</span
+          >
+          <el-button
+            size="small"
+            @click="loadJobPage(jobOffset + jobLimit)"
+            :disabled="jobOffset + jobLimit >= jobTotal || isRecoLoading"
+            :loading="isRecoLoading"
+            >Next</el-button
+          >
+        </div>
 
         <div v-if="authStore.userRole === '雇主'">
           <h2>Recommended Freelancers</h2>
@@ -88,6 +117,44 @@
             </div>
           </el-card>
         </div>
+        <!-- pagination for freelancers -->
+        <div
+          v-if="authStore.userRole === '雇主'"
+          style="
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 20px;
+          "
+        >
+          <el-button
+            size="small"
+            @click="
+              loadFreelancerPage(
+                Math.max(0, freelancerOffset - freelancerLimit)
+              )
+            "
+            :disabled="freelancerOffset === 0 || isFreelancerRecoLoading"
+            :loading="isFreelancerRecoLoading"
+            >Prev</el-button
+          >
+          <span
+            >Page: {{ Math.floor(freelancerOffset / freelancerLimit) + 1 }} /
+            {{
+              Math.max(1, Math.ceil(freelancerTotal / freelancerLimit))
+            }}</span
+          >
+          <el-button
+            size="small"
+            @click="loadFreelancerPage(freelancerOffset + freelancerLimit)"
+            :disabled="
+              freelancerOffset + freelancerLimit >= freelancerTotal ||
+              isFreelancerRecoLoading
+            "
+            :loading="isFreelancerRecoLoading"
+            >Next</el-button
+          >
+        </div>
       </el-col>
 
       <!-- quick section -->
@@ -113,7 +180,36 @@
             </el-button>
           </el-alert>
           <div v-if="profileLoaded || isProfileLoading">
-            <p>(todo : 系統通知資訊會放這裡)</p>
+            <div
+              v-if="notificationStore.unreadNotifications.length > 0"
+              class="notification-list"
+            >
+              <div
+                v-for="notification in notificationStore.unreadNotifications.slice(
+                  0,
+                  5
+                )"
+                :key="notification.notification_id"
+                class="notification-item"
+                @click="notificationStore.handleNotificationClick(notification)"
+              >
+                <el-icon class="notification-icon" color="#E6A23C"
+                  ><InfoFilled
+                /></el-icon>
+                <div class="notification-content">
+                  <span class="notification-title">{{
+                    notification.title
+                  }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div
+              v-else-if="profileLoaded && !isProfileLoading"
+              class="notification-empty"
+            >
+              <el-empty description="目前沒有新的重要提醒" :image-size="60" />
+            </div>
           </div>
         </el-card>
 
@@ -128,6 +224,9 @@
           <div class="quick-actions">
             <el-button text @click="goToProfile" class="action-button">
               <el-icon><User /></el-icon> My Profile
+            </el-button>
+            <el-button text @click="goToMyContracts" class="action-button">
+              <el-icon><Tickets /></el-icon> My Contracts
             </el-button>
 
             <template v-if="authStore.userRole === '雇主'">
@@ -183,17 +282,28 @@ import {
   InfoFilled,
   Tickets,
 } from "@element-plus/icons-vue";
+import { useNotificationStore } from "@/store/notificationStore.js";
 
 const authStore = useAuthStore();
 const router = useRouter();
+// (M8.3 新增) 實例化 Notification Store
+const notificationStore = useNotificationStore();
 
 // 推薦狀態 (工作者)
 const recommendedJobs = ref([]);
 const isRecoLoading = ref(false);
+const jobLimit = ref(10);
+const jobOffset = ref(0);
+const jobHasMore = ref(false);
+const jobTotal = ref(0);
 
 // 推薦狀態 (雇主)
 const recommendedFreelancers = ref([]);
 const isFreelancerRecoLoading = ref(false);
+const freelancerLimit = ref(10);
+const freelancerOffset = ref(0);
+const freelancerHasMore = ref(false);
+const freelancerTotal = ref(0);
 
 // (新增) Profile 狀態
 const profileLoaded = ref(false);
@@ -205,7 +315,8 @@ const goToPostJob = () => router.push("/post-job");
 const goToFindJobs = () => router.push("/find-jobs");
 const goToProjectDetail = (projectId) => router.push(`/projects/${projectId}`);
 const goToFreelancerDetail = (userId) => router.push(`/freelancers/${userId}`);
-const goToMyJobs = () => router.push("/my-jobs"); // (新增)
+const goToMyJobs = () => router.push("/my-jobs");
+const goToMyContracts = () => router.push("/my-contracts");
 
 // 登出
 const handleLogout = () => {
@@ -230,9 +341,12 @@ onMounted(async () => {
   if (authStore.userRole === "自由工作者") {
     isRecoLoading.value = true;
     try {
-      const res = await getJobRecommendations();
-      recommendedJobs.value = res.data;
-      console.log(res.data);
+      const res = await getJobRecommendations(jobLimit.value, jobOffset.value);
+      // backend returns { items: [...], total: N }
+      recommendedJobs.value = res.data.items || [];
+      jobTotal.value = res.data.total || 0;
+      jobHasMore.value =
+        jobOffset.value + (recommendedJobs.value.length || 0) < jobTotal.value;
     } catch (err) {
       ElMessage.error("無法載入推薦案件");
     }
@@ -242,14 +356,56 @@ onMounted(async () => {
   if (authStore.userRole === "雇主") {
     isFreelancerRecoLoading.value = true;
     try {
-      const res = await getFreelancerRecommendations();
-      recommendedFreelancers.value = res.data;
+      const res = await getFreelancerRecommendations(
+        freelancerLimit.value,
+        freelancerOffset.value
+      );
+      recommendedFreelancers.value = res.data.items || [];
+      freelancerTotal.value = res.data.total || 0;
+      freelancerHasMore.value =
+        freelancerOffset.value + (recommendedFreelancers.value.length || 0) <
+        freelancerTotal.value;
     } catch (err) {
       ElMessage.error("無法載入推薦人才");
     }
     isFreelancerRecoLoading.value = false;
   }
 });
+
+// --- Pagination controls ---
+const loadJobPage = async (newOffset) => {
+  jobOffset.value = newOffset;
+  isRecoLoading.value = true;
+  try {
+    const res = await getJobRecommendations(jobLimit.value, jobOffset.value);
+    recommendedJobs.value = res.data.items || [];
+    jobTotal.value = res.data.total || 0;
+    jobHasMore.value =
+      jobOffset.value + (recommendedJobs.value.length || 0) < jobTotal.value;
+  } catch (err) {
+    ElMessage.error("無法載入推薦案件");
+  }
+  isRecoLoading.value = false;
+};
+
+const loadFreelancerPage = async (newOffset) => {
+  freelancerOffset.value = newOffset;
+  isFreelancerRecoLoading.value = true;
+  try {
+    const res = await getFreelancerRecommendations(
+      freelancerLimit.value,
+      freelancerOffset.value
+    );
+    recommendedFreelancers.value = res.data.items || [];
+    freelancerTotal.value = res.data.total || 0;
+    freelancerHasMore.value =
+      freelancerOffset.value + (recommendedFreelancers.value.length || 0) <
+      freelancerTotal.value;
+  } catch (err) {
+    ElMessage.error("無法載入推薦人才");
+  }
+  isFreelancerRecoLoading.value = false;
+};
 </script>
 
 <style lang="scss" scoped>
@@ -354,6 +510,57 @@ h2 {
       margin-right: 6px;
     }
   }
+
+  /* (M8.3 新增) 通知列表樣式 */
+  .notification-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .notification-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    border: 1px solid var(--el-border-color-lighter);
+
+    &:hover {
+      background-color: var(--el-fill-color-light);
+    }
+
+    .notification-icon {
+      font-size: 16px;
+      margin-right: 10px;
+    }
+
+    .notification-content {
+      display: flex;
+      flex-direction: column;
+      .notification-title {
+        font-size: 14px;
+        color: var(--el-text-color-primary);
+        line-height: 1.4;
+      }
+      .notification-time {
+        font-size: 12px;
+        color: var(--el-text-color-secondary);
+      }
+    }
+  }
+
+  .notification-empty {
+    /* el-empty 預設有 padding，
+       我們可以用 :deep 調整或直接使用
+       <el-empty :image-size="60" /> 
+       通常已足夠
+    */
+    :deep(.el-empty__description p) {
+      font-size: 13px;
+    }
+  }
+
   .quick-actions {
     .action-button {
       display: block;

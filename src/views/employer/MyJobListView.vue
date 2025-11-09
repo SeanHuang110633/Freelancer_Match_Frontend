@@ -1,3 +1,4 @@
+<!-- MyJobListView -->
 <template>
   <div class="my-job-list-view">
     <el-page-header @back="goBack" class="page-header">
@@ -68,13 +69,28 @@
               {{ skill.tag.name }}
             </el-tag>
           </div>
+
           <div class="card-actions">
-            <el-button text type="primary" size="small"
-              >管理提案 (TODO)</el-button
+            <el-button
+              v-if="project.status !== '已成案'"
+              text
+              type="primary"
+              size="small"
+              @click.stop="goToProposalManagement(project.project_id)"
             >
-            <el-button text type="primary" size="small"
-              >編輯案件 (TODO)</el-button
+              管理提案
+            </el-button>
+
+            <el-button
+              v-else-if="project.status === '已成案'"
+              text
+              type="success"
+              size="small"
+              :loading="project.isContractLoading"
+              @click.stop="goToContractManagement(project)"
             >
+              管理合約
+            </el-button>
           </div>
         </el-card>
       </el-col>
@@ -87,16 +103,24 @@ import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import { getMyProjects } from "@/api/project.js";
+// (M7.2) 匯入 M7 API
+import { getMyContracts } from "@/api/contract.js";
 import { Money, Location } from "@element-plus/icons-vue";
 
 const router = useRouter();
 const isLoading = ref(true);
 const myProjects = ref([]);
+// (M7.2) 暫存合約列表，避免重複點擊時重複呼叫 API
+const myContracts = ref(null);
 
 onMounted(async () => {
   try {
     const res = await getMyProjects();
-    myProjects.value = res.data;
+    // (修改) 為每個 project 物件添加一個本地 loading 狀態
+    myProjects.value = res.data.map((p) => ({
+      ...p,
+      isContractLoading: false,
+    }));
   } catch (err) {
     ElMessage.error(err.response?.data?.detail || "載入我的案件列表失敗");
   }
@@ -105,7 +129,42 @@ onMounted(async () => {
 
 const goBack = () => router.back();
 const goToPostJob = () => router.push("/post-job");
+// 卡片點擊，跳轉到「公開」的案件詳情頁
 const goToProjectDetail = (projectId) => router.push(`/projects/${projectId}`);
+
+// M6: 按鈕點擊，跳轉到「提案管理」頁
+const goToProposalManagement = (projectId) => {
+  router.push(`/projects/${projectId}/proposals`);
+};
+
+// (M7) 新增: 按鈕點擊，跳轉到「合約管理」頁
+const goToContractManagement = async (project) => {
+  project.isContractLoading = true;
+  try {
+    // 檢查是否已載入合約
+    if (myContracts.value === null) {
+      const res = await getMyContracts();
+      myContracts.value = res.data;
+    }
+
+    // (M7) 從合約列表中，查找與此 project.project_id 匹配的合約
+    const targetContract = myContracts.value.find(
+      (c) => c.project.project_id === project.project_id
+    );
+
+    if (targetContract) {
+      // (M7) 找到合約，跳轉到 ContractDetail 頁
+      router.push(`/contracts/${targetContract.contract_id}`);
+    } else {
+      ElMessage.error("找不到此案件對應的合約資料");
+      // (備註: 理論上 "已成案" 狀態必定有關聯合約)
+    }
+  } catch (err) {
+    ElMessage.error(err.response?.data?.detail || "查找合約失敗");
+  } finally {
+    project.isContractLoading = false;
+  }
+};
 
 // 複用 JobListView 的狀態標籤顏色邏輯
 const statusTagType = (status) => {
@@ -123,6 +182,7 @@ const statusTagType = (status) => {
 </script>
 
 <style lang="scss" scoped>
+/* ... (所有 style 樣式保持不變) ... */
 .my-job-list-view {
   padding: 20px;
 }
@@ -138,7 +198,6 @@ const statusTagType = (status) => {
   margin-bottom: 20px;
 }
 
-/* 複用 JobListView 的卡片樣式 */
 .project-card {
   cursor: pointer;
   height: 100%;
@@ -165,11 +224,10 @@ const statusTagType = (status) => {
     padding: 15px;
     flex-grow: 1;
     display: flex;
-    flex-direction: column; /* 讓 actions 能推到底部 */
+    flex-direction: column;
   }
 
   .project-meta {
-    /* ... (同 JobListView) ... */
     color: #606266;
     font-size: 13px;
     margin-bottom: 8px;
@@ -185,28 +243,29 @@ const statusTagType = (status) => {
     }
   }
   .project-description {
-    /* ... (同 JobListView) ... */
     color: #303133;
     font-size: 14px;
     line-height: 1.5;
     margin-bottom: 10px;
     display: -webkit-box;
-    -webkit-line-clamp: 2;
+    -webkit-line-clamp: 2; /* 為了舊的 WebKit 瀏覽器 */
     -webkit-box-orient: vertical;
     overflow: hidden;
     text-overflow: ellipsis;
-    flex-grow: 1; /* 佔據中間剩餘空間 */
+    flex-grow: 1;
+
+    /* FIX: 加上 W3C 標準屬性，Linter 警告就會消失 */
+    line-clamp: 2;
   }
   .project-skills {
-    /* ... (同 JobListView) ... */
     font-size: 12px;
-    margin-bottom: 10px; /* 增加底部間距 */
+    margin-bottom: 10px;
     .skill-tag {
       margin: 2px 4px 2px 0;
     }
   }
   .card-actions {
-    margin-top: auto; /* 將按鈕推到底部 */
+    margin-top: auto;
     padding-top: 10px;
     border-top: 1px solid var(--el-border-color-lighter);
     text-align: right;

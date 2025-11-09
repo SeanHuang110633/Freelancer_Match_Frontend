@@ -26,6 +26,8 @@
 
     <div class="flex-grow" />
 
+    <NotificationBell />
+
     <el-dropdown trigger="click">
       <span class="avatar-dropdown">
         <el-avatar :icon="UserFilled" size="default" />
@@ -61,6 +63,7 @@ import {
   Search,
   DocumentAdd, // HomeFilled 不再需要
 } from "@element-plus/icons-vue";
+import NotificationBell from "@/components/layout/NotificationBell.vue";
 
 const authStore = useAuthStore();
 const router = useRouter();
