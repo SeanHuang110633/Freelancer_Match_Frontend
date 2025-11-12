@@ -15,7 +15,7 @@
               <div class="card-header">
                 <span>{{ reco.project.title }}</span>
                 <el-tag type="warning" effect="light" round>
-                  推薦指數: {{ reco.recommendation_score }}
+                  Score: {{ reco.recommendation_score }}
                 </el-tag>
               </div>
             </template>
@@ -27,7 +27,7 @@
               </el-col>
               <el-col :span="12">
                 <el-icon><Location /></el-icon>
-                {{ reco.project.location || "未指定" }} /
+                {{ reco.project.location || "Not specified" }} /
                 {{ reco.project.work_type }}
               </el-col>
             </el-row>
@@ -43,7 +43,6 @@
             </div>
           </el-card>
         </div>
-        <!-- pagination for jobs -->
         <div
           v-if="authStore.userRole === '自由工作者'"
           style="
@@ -84,13 +83,13 @@
           >
             <div class="freelancer-header">
               <el-avatar
-                :size="40"
-                :src="reco.profile.avatar_url"
+                :size="85"
+                :src="getFullAvatarUrl(reco.profile.avatar_url)"
                 :icon="UserFilled"
               />
               <div class="header-info">
-                <strong>{{ reco.profile.full_name || "未命名" }}</strong>
-                <p class="bio">{{ reco.profile.bio || "此工作者無自介" }}</p>
+                <strong>{{ reco.profile.full_name || "Untitled" }}</strong>
+                <p class="bio">{{ reco.profile.bio || "No bio provided" }}</p>
                 <div>
                   <el-rate
                     :model-value="reco.profile.reputation_score"
@@ -98,11 +97,11 @@
                     size="small"
                     text-color="#ff9900"
                   />
-                  <span>({{ reco.profile.reputation_score }} 分)</span>
+                  <span>({{ reco.profile.reputation_score }} points)</span>
                 </div>
               </div>
               <el-tag type="warning" effect="light" round class="score-tag">
-                推薦指數: {{ reco.recommendation_score }}
+                Score: {{ reco.recommendation_score }}
               </el-tag>
             </div>
             <div class="skills-info">
@@ -117,7 +116,6 @@
             </div>
           </el-card>
         </div>
-        <!-- pagination for freelancers -->
         <div
           v-if="authStore.userRole === '雇主'"
           style="
@@ -157,26 +155,25 @@
         </div>
       </el-col>
 
-      <!-- quick section -->
       <el-col :xs="24" :sm="24" :md="8">
         <el-card shadow="hover" class="sidebar-card">
           <template #header>
             <div class="card-header">
               <span
-                ><el-icon><InfoFilled /></el-icon> 重要提醒</span
+                ><el-icon><InfoFilled /></el-icon> Important Reminders</span
               >
             </div>
           </template>
           <el-alert
             v-if="!profileLoaded && !isProfileLoading"
-            title="完成 Profile 以獲得精準推薦"
+            title="Complete Your Profile for Accurate Recommendations"
             type="warning"
-            description="請前往「我的 Profile」頁面建立您的個人檔案。"
+            description="Please go to the 'My Profile' page to create your profile."
             show-icon
             :closable="false"
           >
             <el-button size="small" type="warning" plain @click="goToProfile">
-              立即前往
+              Go Now
             </el-button>
           </el-alert>
           <div v-if="profileLoaded || isProfileLoading">
@@ -193,9 +190,7 @@
                 class="notification-item"
                 @click="notificationStore.handleNotificationClick(notification)"
               >
-                <el-icon class="notification-icon" color="#E6A23C"
-                  ><InfoFilled
-                /></el-icon>
+                <el-icon class="notification-icon"><InfoFilled /></el-icon>
                 <div class="notification-content">
                   <span class="notification-title">{{
                     notification.title
@@ -208,7 +203,10 @@
               v-else-if="profileLoaded && !isProfileLoading"
               class="notification-empty"
             >
-              <el-empty description="目前沒有新的重要提醒" :image-size="60" />
+              <el-empty
+                description="No new important reminders"
+                :image-size="60"
+              />
             </div>
           </div>
         </el-card>
@@ -217,7 +215,7 @@
           <template #header>
             <div class="card-header">
               <span
-                ><el-icon><Compass /></el-icon> 快速操作</span
+                ><el-icon><Compass /></el-icon> Quick Actions</span
               >
             </div>
           </template>
@@ -263,13 +261,13 @@
 <script setup>
 import { useAuthStore } from "@/store/authStore.js";
 import { useRouter } from "vue-router";
-import { ref, onMounted, computed } from "vue"; // (新增 computed)
-import { ElMessage } from "element-plus"; // (新增)
+import { ref, onMounted, computed } from "vue";
+import { ElMessage } from "element-plus"; // (Updated)
 import {
   getJobRecommendations,
   getFreelancerRecommendations,
 } from "@/api/recommendation.js";
-import { getMyProfile } from "@/api/profile.js"; // (新增)
+import { getMyProfile } from "@/api/profile.js";
 import {
   UserFilled,
   Money,
@@ -284,12 +282,17 @@ import {
 } from "@element-plus/icons-vue";
 import { useNotificationStore } from "@/store/notificationStore.js";
 
+// (!! 📍 PRODUCTION / GCP DEPLOYMENT NOTE 📍 !!)
+// 這裡是匯入您本地的後端 URL (例如 "http://127.0.0.1:8000")。
+// 當您部署到 GCP 時，您前端的 production build (例如 /config/env.production.js)
+// 必須將此變數修改為您在 GCP App Engine 或 Cloud Run 上的 "後端 API 服務 URL"。
+import { API_BASE_URL } from "@/config/env.js";
+
 const authStore = useAuthStore();
 const router = useRouter();
-// (M8.3 新增) 實例化 Notification Store
 const notificationStore = useNotificationStore();
 
-// 推薦狀態 (工作者)
+// Recommendation State (Freelancer)
 const recommendedJobs = ref([]);
 const isRecoLoading = ref(false);
 const jobLimit = ref(10);
@@ -297,7 +300,7 @@ const jobOffset = ref(0);
 const jobHasMore = ref(false);
 const jobTotal = ref(0);
 
-// 推薦狀態 (雇主)
+// Recommendation State (Employer)
 const recommendedFreelancers = ref([]);
 const isFreelancerRecoLoading = ref(false);
 const freelancerLimit = ref(10);
@@ -305,11 +308,41 @@ const freelancerOffset = ref(0);
 const freelancerHasMore = ref(false);
 const freelancerTotal = ref(0);
 
-// (新增) Profile 狀態
+// Profile State
 const profileLoaded = ref(false);
 const isProfileLoading = ref(false);
 
-// --- 導航函式 ---
+// (!! 修正新增 !!)
+/**
+ * 組合完整的頭貼 URL
+ * @param {string | null} relativeUrl - 資料庫中儲存的 URL (可能是相對路徑)
+ * @returns {string | null} - 完整的、可顯示的 URL
+ */
+const getFullAvatarUrl = (relativeUrl) => {
+  if (!relativeUrl) {
+    return null; // 回傳 null，el-avatar 會顯示 icon
+  }
+
+  // (!! 📍 PRODUCTION / GCP DEPLOYMENT NOTE 📍 !!)
+  // 這裡的邏輯是關鍵。
+  //
+  // 情況 1 (推薦的上線方式):
+  // 您的資料庫儲存完整的 GCP Cloud Storage URL (例如 "https://storage.googleapis.com/...")。
+  // 這個 startsWith('http') 檢查 會捕捉到它，並直接使用該 URL。
+  //
+  // 情況 2 (本地開發方式):
+  // 您的資料庫儲存相對路徑 (例如 "/static/avatar/avatar_1.webp")。
+  // 這段 'else' 邏輯會將它與 API_BASE_URL (http://127.0.0.1:8000) 組合。
+  //
+  if (relativeUrl.startsWith("http")) {
+    return relativeUrl;
+  }
+
+  // 組合後端 Base URL 和我們存的相對路徑
+  return `${API_BASE_URL}${relativeUrl}`;
+};
+
+// --- Navigation ---
 const goToProfile = () => router.push("/profile");
 const goToPostJob = () => router.push("/post-job");
 const goToFindJobs = () => router.push("/find-jobs");
@@ -318,37 +351,35 @@ const goToFreelancerDetail = (userId) => router.push(`/freelancers/${userId}`);
 const goToMyJobs = () => router.push("/my-jobs");
 const goToMyContracts = () => router.push("/my-contracts");
 
-// 登出
+// Logout
 const handleLogout = () => {
   authStore.logout();
   router.push("/login");
 };
 
-// 載入資料
+// Load Data
 onMounted(async () => {
-  // 1. 檢查 Profile 狀態
+  // 1. Check Profile Status
   isProfileLoading.value = true;
   try {
     const profileRes = await getMyProfile();
-    profileLoaded.value = !!profileRes.data; // 如果 data 不為 null，則為 true
+    profileLoaded.value = !!profileRes.data;
   } catch (err) {
-    // 忽略錯誤，可能只是 404
     profileLoaded.value = false;
   }
   isProfileLoading.value = false;
 
-  // 2. 根據角色載入推薦
+  // 2. Load Recommendations based on Role
   if (authStore.userRole === "自由工作者") {
     isRecoLoading.value = true;
     try {
       const res = await getJobRecommendations(jobLimit.value, jobOffset.value);
-      // backend returns { items: [...], total: N }
       recommendedJobs.value = res.data.items || [];
       jobTotal.value = res.data.total || 0;
       jobHasMore.value =
         jobOffset.value + (recommendedJobs.value.length || 0) < jobTotal.value;
     } catch (err) {
-      ElMessage.error("無法載入推薦案件");
+      ElMessage.error("Failed to load recommended jobs"); // (Updated)
     }
     isRecoLoading.value = false;
   }
@@ -366,7 +397,7 @@ onMounted(async () => {
         freelancerOffset.value + (recommendedFreelancers.value.length || 0) <
         freelancerTotal.value;
     } catch (err) {
-      ElMessage.error("無法載入推薦人才");
+      ElMessage.error("Failed to load recommended freelancers"); // (Updated)
     }
     isFreelancerRecoLoading.value = false;
   }
@@ -383,7 +414,7 @@ const loadJobPage = async (newOffset) => {
     jobHasMore.value =
       jobOffset.value + (recommendedJobs.value.length || 0) < jobTotal.value;
   } catch (err) {
-    ElMessage.error("無法載入推薦案件");
+    ElMessage.error("Failed to load recommended jobs"); // (Updated)
   }
   isRecoLoading.value = false;
 };
@@ -402,7 +433,7 @@ const loadFreelancerPage = async (newOffset) => {
       freelancerOffset.value + (recommendedFreelancers.value.length || 0) <
       freelancerTotal.value;
   } catch (err) {
-    ElMessage.error("無法載入推薦人才");
+    ElMessage.error("Failed to load recommended freelancers"); // (Updated)
   }
   isFreelancerRecoLoading.value = false;
 };
@@ -410,22 +441,69 @@ const loadFreelancerPage = async (newOffset) => {
 
 <style lang="scss" scoped>
 .home-view {
+  // --- 1. Define New Palette ---
+  --app-bg-color: rgba(250, 247, 239, 0.973); // Soft beige
+  --app-text-color: #616130;
+  --app-text-color-secondary: #8a8a69;
+  --app-hover-border-color: #dcd8c8;
+  --app-hover-bg-color: rgba(252, 250, 248, 1); // More opaque
+  --app-accent-color: #817c5b; // Muted olive-brown
+  --app-warning-color: #c6a870; // Muted gold
+  --app-danger-color: #b56f6f; // Brownish-red
+  --app-info-bg-color: rgba(220, 216, 200, 0.3); // Muted beige bg for tags
+
+  // --- 2. Override Element Plus Vars ---
+  // This is the cleanest way to override the palette
+  // It will affect all children Element Plus components within this view
+  --el-text-color-primary: var(--app-text-color);
+  --el-text-color-regular: var(--app-text-color);
+  --el-text-color-secondary: var(--app-text-color-secondary);
+  --el-text-color-placeholder: #a2a287;
+
+  --el-bg-color: var(--app-bg-color);
+  --el-bg-color-overlay: var(--app-hover-bg-color);
+  --el-fill-color-light: var(--app-hover-bg-color);
+  --el-fill-color-blank: transparent; // Make backgrounds transparent
+
+  --el-card-bg-color: var(--app-bg-color);
+  --el-card-border-color: transparent; // No borders on cards by default
+
+  --el-border-color: var(--app-hover-border-color);
+  --el-border-color-lighter: rgba(220, 216, 200, 0.5);
+  --el-border-color-light: var(--app-hover-border-color);
+
+  --el-color-primary: var(--app-accent-color);
+  --el-color-primary-light-9: var(--app-info-bg-color);
+
+  --el-color-warning: var(--app-warning-color);
+  --el-color-warning-light-9: var(--app-info-bg-color);
+
+  --el-color-info: var(--app-text-color-secondary);
+  --el-color-info-light-9: var(--app-info-bg-color);
+
+  --el-color-danger: var(--app-danger-color);
+  --el-color-danger-light-9: rgba(181, 111, 111, 0.1);
+
+  // --- 3. Apply Base Styles ---
   padding: 20px;
+  color: var(--app-text-color);
 }
 
 h2 {
   margin-top: 0;
   margin-bottom: 20px;
-  color: #303133;
+  color: var(--app-text-color); // Explicitly set heading
 }
 
 .recommendation-card {
   margin-bottom: 20px;
   cursor: pointer;
 
-  /* (新增) 預設邊框與過渡效果 */
-  border: 1px solid var(--el-card-border-color);
-  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  /* (Updated) Use new palette */
+  background-color: var(--app-bg-color);
+  border: 1px solid var(--app-hover-border-color); // Use the lighter border
+  transition: border-color 0.3s ease, box-shadow 0.3s ease,
+    background-color 0.3s ease;
 
   .card-header {
     // For job card
@@ -434,15 +512,16 @@ h2 {
     align-items: center;
   }
 
-  /* (新增) Hover 效果 */
+  /* (Updated) Hover 效果 */
   &:hover {
-    border-color: var(--el-color-primary);
+    border-color: var(--app-accent-color); // Use accent on hover
+    background-color: var(--app-hover-bg-color); // Use opaque bg on hover
     box-shadow: var(--el-box-shadow-light);
   }
 
   &.job-card {
     .meta-info {
-      color: #606266;
+      color: var(--app-text-color-secondary); // Use secondary text
       font-size: 13px;
       margin-bottom: 8px;
       .el-col {
@@ -450,6 +529,7 @@ h2 {
         align-items: center;
         .el-icon {
           margin-right: 4px;
+          color: var(--app-text-color-secondary); // Icon color
         }
       }
     }
@@ -461,14 +541,32 @@ h2 {
   &.freelancer-card {
     .freelancer-header {
       display: flex;
-      align-items: center;
+      /* (!! 修正 !!)：改為 flex-start，讓文字從頂部對齊放大的頭貼 */
+      align-items: flex-start;
       margin-bottom: 10px;
       position: relative; /* 為了分數 Tag 定位 */
+
+      /* (!! 修正新增 !!)：為 el-avatar 添加樣式 */
+      .el-avatar {
+        border: 1px solid var(--app-hover-border-color);
+        font-size: 30px; /* 備用 icon 的大小 */
+        flex-shrink: 0; /* 防止頭像被壓縮 */
+
+        /* 確保圖片填滿 */
+        :deep(img) {
+          object-fit: cover;
+          width: 100%;
+          height: 100%;
+        }
+      }
+
       .header-info {
-        margin-left: 10px;
+        /* (!! 修正 !!)：增加左邊距以適應 60px 的頭貼 */
+        margin-left: 15px;
         strong {
           display: block;
           margin-bottom: 2px;
+          color: var(--app-text-color); // Ensure strong is base color
         }
         div {
           display: flex;
@@ -477,10 +575,11 @@ h2 {
         .el-rate {
           height: auto;
           margin-right: 5px;
+          // The CSS var override will handle the star color
         }
         span {
           font-size: 12px;
-          color: #909399;
+          color: var(--app-text-color-secondary); // Use secondary text
         }
       }
       /* (新增) 分數 Tag 樣式 */
@@ -488,6 +587,7 @@ h2 {
         position: absolute;
         top: 0;
         right: 0;
+        // CSS var override will handle tag colors
       }
     }
     .skills-info {
@@ -497,21 +597,25 @@ h2 {
 
   .skill-tag {
     margin: 2px 4px 2px 0;
+    // CSS var override will handle tag colors
   }
 }
 
 .sidebar-card {
   margin-bottom: 20px;
+  background-color: var(--app-bg-color); // Apply new BG
+  border: 1px solid var(--app-hover-border-color); // Use lighter border
+
   .card-header {
     display: flex;
     align-items: center;
     font-weight: bold;
     .el-icon {
       margin-right: 6px;
+      color: var(--app-text-color); // Header icon is primary text
     }
   }
 
-  /* (M8.3 新增) 通知列表樣式 */
   .notification-list {
     display: flex;
     flex-direction: column;
@@ -524,15 +628,16 @@ h2 {
     border-radius: 4px;
     cursor: pointer;
     transition: background-color 0.2s ease;
-    border: 1px solid var(--el-border-color-lighter);
+    border: 1px solid var(--app-hover-border-color);
 
     &:hover {
-      background-color: var(--el-fill-color-light);
+      background-color: var(--app-hover-bg-color);
     }
 
     .notification-icon {
       font-size: 16px;
       margin-right: 10px;
+      color: var(--app-warning-color); // Use warning color
     }
 
     .notification-content {
@@ -540,24 +645,20 @@ h2 {
       flex-direction: column;
       .notification-title {
         font-size: 14px;
-        color: var(--el-text-color-primary);
+        color: var(--app-text-color);
         line-height: 1.4;
       }
       .notification-time {
         font-size: 12px;
-        color: var(--el-text-color-secondary);
+        color: var(--app-text-color-secondary);
       }
     }
   }
 
   .notification-empty {
-    /* el-empty 預設有 padding，
-       我們可以用 :deep 調整或直接使用
-       <el-empty :image-size="60" /> 
-       通常已足夠
-    */
     :deep(.el-empty__description p) {
       font-size: 13px;
+      color: var(--app-text-color-secondary); // Apply secondary text
     }
   }
 
@@ -568,15 +669,32 @@ h2 {
       justify-content: flex-start; /* 文字靠左 */
       margin-bottom: 5px;
       padding: 10px 15px;
+      // CSS var override will handle text button color
       .el-icon {
         margin-right: 8px;
       }
+      // Apply hover explicitly for text buttons in this new theme
+      &:hover {
+        background-color: var(--app-info-bg-color);
+        color: var(--app-accent-color);
+      }
     }
     .logout-button {
-      color: var(--el-color-danger);
+      color: var(--app-danger-color); // Apply danger color
+
+      // Override icon color as well
+      :deep(.el-icon) {
+        color: var(--app-danger-color);
+      }
+
+      &:hover {
+        color: var(--app-danger-color);
+        background-color: var(--el-color-danger-light-9); // Use light danger bg
+      }
     }
     .el-divider {
       margin: 10px 0;
+      border-color: var(--app-hover-border-color); // Use lighter border
     }
   }
 }

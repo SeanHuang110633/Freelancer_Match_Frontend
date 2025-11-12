@@ -38,3 +38,24 @@ export const updateMyProfile = (data) => {
 export const getFreelancerProfileByUserId = (userId) => {
   return http.get(`/profiles/freelancer/${userId}`);
 };
+
+/**
+ * (新增) (雇主) 依技能搜尋工作者
+ * @param {string[]} skillTagIds - e.g., ["uuid1", "uuid2"]
+ * @returns {Promise<List[FreelancerProfileOut]>}
+ */
+export const searchFreelancers = (skillTagIds = []) => {
+  const params = {
+    // (重要) Key 必須是 'tag_id[]' 才能被後端 getlist("tag_id[]") 抓到
+    "tag_id[]": skillTagIds,
+  };
+
+  // 呼叫我們在 profile_router.py 中建立的新端點
+  return http.get("/profiles/freelancers/search", {
+    params,
+    // (可選) 確保 axios 正確序列化陣列
+    paramsSerializer: {
+      indexes: null, // 序列化為 tag_id[]=...&tag_id[]=...
+    },
+  });
+};

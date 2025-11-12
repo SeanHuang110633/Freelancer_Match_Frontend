@@ -1,5 +1,5 @@
 <template>
-  <el-row justify="center">
+  <el-row justify="center" class="profile-view-wrapper">
     <el-col :xs="24" :sm="20" :md="16" :lg="12">
       <el-card v-if="isLoading" shadow="never">
         <el-skeleton :rows="5" animated />
@@ -7,8 +7,8 @@
 
       <el-card v-if="!isLoading && !profile" shadow="hover">
         <template #header>
-          <h2>建立您的 Profile</h2>
-          <p>完成 Profile 是開始接案/刊登的第一步。</p>
+          <h2>Create Your Profile</h2>
+          <p>Completing your profile is the first step to get started.</p>
         </template>
         <el-form
           ref="createFormRef"
@@ -17,54 +17,84 @@
           @submit.prevent="handleCreateProfile"
         >
           <template v-if="authStore.userRole === '自由工作者'">
-            <el-form-item label="您的全名 (必填)" prop="full_name">
+            <el-form-item label="Your Full Name (Required)" prop="full_name">
               <el-input v-model="createForm.full_name" required />
             </el-form-item>
-            <el-form-item label="個人簡介" prop="bio">
+            <el-form-item label="Bio" prop="bio">
               <el-input v-model="createForm.bio" type="textarea" :rows="3" />
             </el-form-item>
-            <el-form-item label="聯絡電話" prop="phone">
+            <el-form-item label="Contact Phone" prop="phone">
               <el-input
                 v-model="createForm.phone"
                 placeholder="e.g., 0912-345-678"
               />
             </el-form-item>
-            <el-form-item label="頭像 URL" prop="avatar_url">
+            <el-form-item label="Avatar URL" prop="avatar_url">
               <el-input
                 v-model="createForm.avatar_url"
                 placeholder="e.g., https://.../avatar.png"
               />
             </el-form-item>
-            <el-form-item label="GitHub" prop="github">
+            <el-form-item prop="github">
+              <template #label>
+                <div class="icon-label">
+                  <span>GitHub</span>
+                </div>
+              </template>
               <el-input
                 v-model="createForm.social_links.github"
                 placeholder="e.g., https://github.com/username"
               />
             </el-form-item>
+            <el-form-item prop="linkedin">
+              <template #label>
+                <div class="icon-label">
+                  <span>LinkedIn</span>
+                </div>
+              </template>
+              <el-input
+                v-model="createForm.social_links.linkedin"
+                placeholder="e.g., https://linkedin.com/in/username"
+              />
+            </el-form-item>
           </template>
 
           <template v-if="authStore.userRole === '雇主'">
-            <el-form-item label="公司/團隊名稱 (必填)" prop="company_name">
+            <el-form-item
+              label="Company/Team Name (Required)"
+              prop="company_name"
+            >
               <el-input v-model="createForm.company_name" required />
             </el-form-item>
-            <el-form-item label="公司簡介" prop="company_bio">
+            <el-form-item label="Company Bio" prop="company_bio">
               <el-input
                 v-model="createForm.company_bio"
                 type="textarea"
                 :rows="3"
               />
             </el-form-item>
-            <el-form-item label="公司 Logo URL" prop="company_logo_url">
+            <el-form-item label="Company Logo URL" prop="company_logo_url">
               <el-input
                 v-model="createForm.company_logo_url"
                 placeholder="e.g., https://.../logo.png"
               />
             </el-form-item>
-            <el-form-item label="聯絡信箱" prop="contact_email">
+            <el-form-item label="Contact Email" prop="contact_email">
               <el-input v-model="createForm.contact_email" />
             </el-form-item>
-            <el-form-item label="聯絡電話" prop="contact_phone">
+            <el-form-item label="Contact Phone" prop="contact_phone">
               <el-input v-model="createForm.contact_phone" />
+            </el-form-item>
+            <el-form-item prop="linkedin">
+              <template #label>
+                <div class="icon-label">
+                  <span>LinkedIn</span>
+                </div>
+              </template>
+              <el-input
+                v-model="createForm.social_links.linkedin"
+                placeholder="e.g., https://linkedin.com/company/username"
+              />
             </el-form-item>
           </template>
 
@@ -74,7 +104,7 @@
               native-type="submit"
               :loading="isSubmitting"
             >
-              儲存並開始
+              Save and Get Started
             </el-button>
           </el-form-item>
         </el-form>
@@ -86,23 +116,30 @@
         type="border-card"
         class="profile-tabs"
       >
-        <el-tab-pane label="基本資料與設定" name="basic">
+        <el-tab-pane label="Basic Info & Settings" name="basic">
           <el-form
             label-position="top"
             :model="editForm"
             @submit.prevent="handleUpdateProfile"
           >
+            <div class="avatar-container">
+              <el-avatar
+                :size="150"
+                :src="displayedAvatarUrl"
+                :icon="UserFilled"
+              />
+            </div>
             <el-form-item v-if="!isEditing">
               <el-button type="primary" @click="isEditing = true">
-                <el-icon><Edit /></el-icon> 編輯資料
+                <el-icon><Edit /></el-icon> Edit Profile
               </el-button>
             </el-form-item>
 
             <template v-if="authStore.userRole === '自由工作者'">
-              <el-form-item label="全名">
+              <el-form-item label="Full Name">
                 <el-input v-model="editForm.full_name" :disabled="!isEditing" />
               </el-form-item>
-              <el-form-item label="個人簡介">
+              <el-form-item label="Bio">
                 <el-input
                   v-model="editForm.bio"
                   type="textarea"
@@ -110,41 +147,57 @@
                   :disabled="!isEditing"
                 />
               </el-form-item>
-              <el-form-item label="聯絡電話">
+              <el-form-item label="Contact Phone">
                 <el-input v-model="editForm.phone" :disabled="!isEditing" />
               </el-form-item>
-              <el-form-item label="頭像 URL">
+              <el-form-item label="Avatar URL">
                 <el-input
                   v-model="editForm.avatar_url"
                   :disabled="!isEditing"
                 />
               </el-form-item>
-              <el-form-item label="GitHub">
+              <el-form-item>
+                <template #label>
+                  <div class="icon-label">
+                    <span>GitHub</span>
+                  </div>
+                </template>
                 <el-input
                   v-model="editForm.social_links.github"
                   :disabled="!isEditing"
                 />
               </el-form-item>
-              <el-form-item label="檔案可見度">
+              <el-form-item>
+                <template #label>
+                  <div class="icon-label">
+                    <span>LinkedIn</span>
+                  </div>
+                </template>
+                <el-input
+                  v-model="editForm.social_links.linkedin"
+                  :disabled="!isEditing"
+                />
+              </el-form-item>
+              <el-form-item label="Profile Visibility">
                 <el-radio-group
                   v-model="editForm.visibility"
                   :disabled="!isEditing"
                 >
-                  <el-radio label="公開">公開</el-radio>
-                  <el-radio label="僅受邀">僅受邀</el-radio>
-                  <el-radio label="私人">私人</el-radio>
+                  <el-radio label="公開">Public</el-radio>
+                  <el-radio label="僅受邀">Invite Only</el-radio>
+                  <el-radio label="私人">Private</el-radio>
                 </el-radio-group>
               </el-form-item>
             </template>
 
             <template v-if="authStore.userRole === '雇主'">
-              <el-form-item label="公司名稱">
+              <el-form-item label="Company Name">
                 <el-input
                   v-model="editForm.company_name"
                   :disabled="!isEditing"
                 />
               </el-form-item>
-              <el-form-item label="公司簡介">
+              <el-form-item label="Company Bio">
                 <el-input
                   v-model="editForm.company_bio"
                   type="textarea"
@@ -152,21 +205,32 @@
                   :disabled="!isEditing"
                 />
               </el-form-item>
-              <el-form-item label="公司 Logo URL">
+              <el-form-item label="Company Logo URL">
                 <el-input
                   v-model="editForm.company_logo_url"
                   :disabled="!isEditing"
                 />
               </el-form-item>
-              <el-form-item label="聯絡信箱">
+              <el-form-item label="Contact Email">
                 <el-input
                   v-model="editForm.contact_email"
                   :disabled="!isEditing"
                 />
               </el-form-item>
-              <el-form-item label="聯絡電話">
+              <el-form-item label="Contact Phone">
                 <el-input
                   v-model="editForm.contact_phone"
+                  :disabled="!isEditing"
+                />
+              </el-form-item>
+              <el-form-item>
+                <template #label>
+                  <div class="icon-label">
+                    <span>LinkedIn</span>
+                  </div>
+                </template>
+                <el-input
+                  v-model="editForm.social_links.linkedin"
                   :disabled="!isEditing"
                 />
               </el-form-item>
@@ -178,20 +242,22 @@
                 native-type="submit"
                 :loading="isSubmitting"
               >
-                儲存變更
+                Save Changes
               </el-button>
-              <el-button @click="cancelEdit">取消</el-button>
+              <el-button @click="cancelEdit">Cancel</el-button>
             </el-form-item>
           </el-form>
         </el-tab-pane>
 
         <el-tab-pane
           v-if="authStore.userRole === '自由工作者'"
-          label="我的技能"
+          label="My Skills"
           name="skills"
         >
           <el-form @submit.prevent="handleUpdateSkills">
-            <el-form-item label="請勾選您擅長的技能 (可多選)">
+            <el-form-item
+              label="Please select the skills you master (Multiple choice)"
+            >
               <el-checkbox-group v-model="selectedSkillIds">
                 <el-checkbox
                   v-for="tag in allTags"
@@ -202,7 +268,7 @@
                   {{ tag.name }}
                 </el-checkbox>
               </el-checkbox-group>
-              <div v-if="allTags.length === 0">技能列表載入中...</div>
+              <div v-if="allTags.length === 0">Loading skills...</div>
             </el-form-item>
             <el-form-item>
               <el-button
@@ -210,7 +276,7 @@
                 native-type="submit"
                 :loading="isSubmitting"
               >
-                更新技能
+                Update Skills
               </el-button>
             </el-form-item>
           </el-form>
@@ -221,49 +287,101 @@
 </template>
 
 <script setup>
-import { ref, onMounted, reactive, watch } from "vue"; // (新增 reactive, watch)
+import { ref, onMounted, reactive, computed } from "vue";
 import { useAuthStore } from "@/store/authStore.js";
 import { ElMessage } from "element-plus";
-import { Edit } from "@element-plus/icons-vue"; // (新增)
+import { Edit, UserFilled } from "@element-plus/icons-vue";
 import {
   getMyProfile,
   createMyProfile,
   updateMySkills,
-  updateMyProfile, // (更新) 確保已匯入
+  updateMyProfile,
 } from "@/api/profile.js";
 import { getAllTags } from "@/api/tags.js";
-import { cloneDeep } from "lodash-es"; // (新增) 用於取消編輯
+import { cloneDeep } from "lodash-es";
+
+// (!! 📍 PRODUCTION / GCP DEPLOYMENT NOTE 📍 !!)
+// 這裡是匯入您本地的後端 URL (例如 "http://127.0.0.1:8000")。
+// 當您部署到 GCP 時，您前端的 production build (例如 /config/env.production.js)
+// 必須將此變數修改為您在 GCP App Engine 或 Cloud Run 上的 "後端 API 服務 URL"。
+import { API_BASE_URL } from "@/config/env.js"; // (3. 匯入後端 URL)
 
 const authStore = useAuthStore();
 const isLoading = ref(true);
 const isSubmitting = ref(false);
 const activeTab = ref("basic");
-const isEditing = ref(false); // (新增) 編輯模式
+const isEditing = ref(false);
 
-// --- 狀態 ---
 const profile = ref(null);
 const allTags = ref([]);
 const selectedSkillIds = ref([]);
 
-// (修改) 建立表單 (狀態 2)
+// (修改) 擴充 social_links
 const createForm = reactive({
   full_name: "",
   bio: "",
   phone: "",
   avatar_url: "",
-  social_links: { github: "" }, // (修改) 初始化 social_links
+  social_links: { github: "", linkedin: "" }, // <-- (修改)
   company_name: "",
   company_bio: "",
   company_logo_url: "",
   contact_email: "",
   contact_phone: "",
-  // (注意) 雇主的 social_links 暫時未加
 });
 
-// (新增) 編輯表單 (狀態 3)
 const editForm = ref(null);
 
-// (Feedback 1) 成功後，更新本地狀態 (自動刷新)
+// (!! 4. 新增 computed 屬性 !!)
+// 這個 computed 會自動組合出完整的頭貼 URL
+const displayedAvatarUrl = computed(() => {
+  // 確保 editForm 和 avatar_url 都存在
+  if (editForm.value && editForm.value.avatar_url) {
+    // (!! 📍 PRODUCTION / GCP DEPLOYMENT NOTE 📍 !!)
+    // 這裡的邏輯是關鍵。
+    //
+    // 情況 1 (推薦的上線方式):
+    // 您的資料庫儲存完整的 GCP Cloud Storage URL (例如 "https://storage.googleapis.com/...")。
+    // 這個 startsWith('http') 檢查 會捕捉到它，並直接使用該 URL。
+    //
+    // 情況 2 (本地開發方式):
+    // 您的資料庫儲存相對路徑 (例如 "/static/avatar/avatar_1.webp")。
+    // 這段 'else' 邏輯會將它與 API_BASE_URL (http://127.0.0.1:8000) 組合。
+    //
+    // 情況 3 (不推薦，但可行):
+    // 您的資料庫只儲存檔案名稱 (例如 "avatar_1.webp")。
+    // 您必須修改 'else' 邏輯，將 API_BASE_URL 替換為您的 GCP Bucket 基礎 URL。
+    // 例如： return `https://storage.googleapis.com/YOUR_BUCKET_NAME/${editForm.value.avatar_url}`;
+    //
+    //
+    //
+    if (editForm.value.avatar_url.startsWith("http")) {
+      //
+      return editForm.value.avatar_url;
+    }
+
+    // 否則，組合後端 Base URL 和我們存的相對路徑
+    return `${API_BASE_URL}${editForm.value.avatar_url}`; //
+  }
+
+  // 如果沒有 URL，回傳 null，el-avatar 會顯示 icon
+  return null;
+});
+
+// (新增) 輔助函式：確保 social_links 欄位存在
+const ensureSocialLinks = (formObject) => {
+  if (!formObject.social_links) {
+    formObject.social_links = {};
+  }
+  if (!formObject.social_links.github) {
+    formObject.social_links.github = "";
+  }
+  if (!formObject.social_links.linkedin) {
+    formObject.social_links.linkedin = "";
+  }
+  return formObject;
+};
+
 const loadProfileData = async () => {
   try {
     const profileRes = await getMyProfile();
@@ -271,14 +389,10 @@ const loadProfileData = async () => {
     if (profileRes.data) {
       profile.value = profileRes.data;
 
-      // (新增) 將資料複製到 editForm
-      // 使用 cloneDeep 避免響應式汙染
-      editForm.value = cloneDeep(profile.value);
+      // (修改) 使用輔助函式確保欄位存在
+      editForm.value = cloneDeep(ensureSocialLinks(profile.value));
 
-      // (新增) 確保 social_links 至少是個空物件
-      if (!editForm.value.social_links) {
-        editForm.value.social_links = { github: "" };
-      }
+      console.log("Loaded profile:", profile.value);
 
       if (authStore.userRole === "自由工作者") {
         selectedSkillIds.value = profile.value.skills.map(
@@ -291,7 +405,7 @@ const loadProfileData = async () => {
       }
     }
   } catch (err) {
-    ElMessage.error("載入 Profile 失敗");
+    ElMessage.error("Failed to load profile");
   }
 };
 
@@ -301,26 +415,23 @@ onMounted(async () => {
   isLoading.value = false;
 });
 
-// --- 處理函式 ---
-
-// 創建 Profile
 const handleCreateProfile = async () => {
   isSubmitting.value = true;
-
-  // (修正) <--- 根據角色動態建立 dataToSend
   let dataToSend = {};
+
+  // (修改) social_links 已在 createForm 中
+  const social_links = {
+    github: createForm.social_links.github || "",
+    linkedin: createForm.social_links.linkedin || "",
+  };
 
   if (authStore.userRole === "自由工作者") {
     dataToSend = {
       full_name: createForm.full_name,
       bio: createForm.bio,
       phone: createForm.phone,
-      // 確保空 URL 傳送 null
       avatar_url: createForm.avatar_url || null,
-      // 確保 social_links 是物件
-      social_links: {
-        github: createForm.social_links.github || "",
-      },
+      social_links: social_links, // <-- (修改)
     };
   } else if (authStore.userRole === "雇主") {
     dataToSend = {
@@ -328,33 +439,23 @@ const handleCreateProfile = async () => {
       company_bio: createForm.company_bio,
       contact_email: createForm.contact_email,
       contact_phone: createForm.contact_phone,
-      // 確保空 URL 傳送 null
       company_logo_url: createForm.company_logo_url || null,
-      // (TODO) 雇主的 social_links 尚未處理
-      social_links: {},
+      social_links: social_links, // <-- (修改)
     };
   } else {
-    ElMessage.error("無法識別的使用者角色");
+    ElMessage.error("Unknown user role");
     isSubmitting.value = false;
-    return; // 不繼續執行
+    return;
   }
 
   try {
-    // 現在 dataToSend 只包含該角色需要的欄位
     const res = await createMyProfile(dataToSend);
     profile.value = res.data;
-    editForm.value = cloneDeep(res.data);
 
-    // (新增) 確保 editForm 的 social_links 初始化
-    if (!editForm.value.social_links) {
-      if (authStore.userRole === "自由工作者") {
-        editForm.value.social_links = { github: "" };
-      } else {
-        editForm.value.social_links = {};
-      }
-    }
+    // (修改) 使用輔助函式
+    editForm.value = cloneDeep(ensureSocialLinks(res.data));
 
-    ElMessage.success("Profile 建立成功！");
+    ElMessage.success("Profile created successfully!");
 
     if (authStore.userRole === "自由工作者") {
       const tagsRes = await getAllTags();
@@ -362,17 +463,14 @@ const handleCreateProfile = async () => {
       activeTab.value = "skills";
     }
   } catch (err) {
-    ElMessage.error(err.response?.data?.detail || "建立失敗");
+    ElMessage.error(err.response?.data?.detail || "Creation failed");
   }
   isSubmitting.value = false;
 };
 
-// (新增) 更新 Profile
 const handleUpdateProfile = async () => {
   isSubmitting.value = true;
   try {
-    // (修改) 傳送 editForm
-    // 確保空 URL 傳送 null
     const dataToSend = {
       ...editForm.value,
       avatar_url: editForm.value.avatar_url || null,
@@ -380,33 +478,32 @@ const handleUpdateProfile = async () => {
     };
 
     const res = await updateMyProfile(dataToSend);
-    profile.value = res.data; // (Feedback 1) 更新
-    editForm.value = cloneDeep(res.data); // 同步更新
-    isEditing.value = false; // 退出編輯模式
-    ElMessage.success("基本資料更新成功");
+    profile.value = res.data;
+    editForm.value = cloneDeep(ensureSocialLinks(res.data)); // (修改)
+    isEditing.value = false;
+    ElMessage.success("Basic info updated successfully");
   } catch (err) {
-    ElMessage.error(err.response?.data?.detail || "更新失敗");
+    ElMessage.error(err.response?.data?.detail || "Update failed");
   }
   isSubmitting.value = false;
 };
 
-// (新增) 取消編輯
 const cancelEdit = () => {
   isEditing.value = false;
-  // (Rollback) 從原始 profile 恢復
-  editForm.value = cloneDeep(profile.value);
+  editForm.value = cloneDeep(ensureSocialLinks(profile.value)); // (修改)
 };
 
-// 更新技能 (Tab 2)
 const handleUpdateSkills = async () => {
-  // ... (此函式保持不變) ...
   isSubmitting.value = true;
   try {
     const res = await updateMySkills(selectedSkillIds.value);
     profile.value.skills = res.data;
-    ElMessage.success("技能更新成功");
+    ElMessage.success("Skills updated successfully");
+
+    // (新增) 需求：切換回 "basic" tab
+    activeTab.value = "basic";
   } catch (err) {
-    ElMessage.error(err.response?.data?.detail || "更新技能失敗");
+    ElMessage.error(err.response?.data?.detail || "Skill update failed");
     selectedSkillIds.value = profile.value.skills.map(
       (userSkill) => userSkill.tag.tag_id
     );
@@ -416,6 +513,43 @@ const handleUpdateSkills = async () => {
 </script>
 
 <style lang="scss" scoped>
+/* (新增) 需求：全域背景色 */
+.profile-view-wrapper {
+  /* 注意：這只會改變這個頁面的背景。
+    要改變 "所有介面"，應在 App.vue 或 main.scss 的 body/html 上設定 
+  */
+  background-color: rgba(252, 250, 248, 0.8);
+  padding: 20px;
+  min-height: calc(100vh - 60px); // 假設 Navbar 高 60px
+}
+
+/* (新增) 需求：自訂 Element Plus 顏色 */
+/* 我們使用 :deep() 來覆蓋 Element Plus 在此元件內的 CSS 變數。
+  注意：這只會影響此 ProfileView.vue 及其子元件。
+  要 "統一調整所有介面"，應在 src/styles/main.scss 中設定 :root {}。
+*/
+:deep() {
+  /* 按鈕主色 */
+  --el-color-primary: #a79c7f;
+  --el-color-primary-dark-2: #7d7561; /* (Hover 色) */
+  --el-color-primary-light-3: #c3bba9;
+  --el-color-primary-light-5: #d4cec0;
+  --el-color-primary-light-7: #e5e2d8;
+  --el-color-primary-light-8: #eceae3;
+  --el-color-primary-light-9: #f6f5f1;
+
+  /* Checkbox 選中顏色 */
+  --el-checkbox-checked-bg-color: #a79c7f;
+  --el-checkbox-checked-icon-color: #ffffff;
+  --el-checkbox-checked-border-color: #a79c7f;
+
+  /* Tabs 選中顏色 */
+  --el-tabs-header-border-color: #e0e0e0;
+  --el-tabs-tab-active-text-color: #a79c7f;
+  --el-tabs-tab-active-border-color: #a79c7f;
+}
+/* (新增結束) */
+
 .profile-tabs {
   :deep(.el-tabs__content) {
     min-height: 200px;
@@ -423,5 +557,36 @@ const handleUpdateSkills = async () => {
 }
 .skill-checkbox {
   margin: 5px;
+}
+
+/* (新增) 需求：Icon 樣式 */
+.icon-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  .social-icon {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+// (!! 修正 !!)：加入頭貼樣式
+.avatar-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 24px;
+
+  .el-avatar {
+    border: 2px solid var(--el-border-color-lighter);
+    /* (!! 修正 !!)：將備用 icon 放大以匹配 150px 的尺寸 */
+    font-size: 75px;
+    // 確保圖片正確顯示
+    img {
+      object-fit: cover;
+      width: 100%;
+      height: 100%;
+    }
+  }
 }
 </style>

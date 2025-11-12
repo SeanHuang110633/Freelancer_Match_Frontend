@@ -6,6 +6,31 @@
       </template>
     </el-page-header>
 
+    <el-card class="steps-card" shadow="never" v-if="!isLoading && contract">
+      <el-steps
+        :active="activeStep"
+        :process-status="stepStatus"
+        finish-status="success"
+        align-center
+      >
+        <el-step title="協商中" />
+        <el-step title="進行中" />
+        <el-step title="驗收中" />
+        <el-step title="已完成" />
+      </el-steps>
+      <div v-if="stepStatus === 'warning'" class="step-warning">
+        <el-icon><WarningFilled /></el-icon>
+        <span>
+          狀態更新：目前為 <strong>{{ contract.status }}</strong
+          >，等待{{ isEmployer ? "工作者" : "雇主" }}回應。
+        </span>
+      </div>
+      <div v-if="stepStatus === 'error'" class="step-error">
+        <el-icon><CircleCloseFilled /></el-icon>
+        <span>合約已終止。</span>
+      </div>
+    </el-card>
+
     <div v-if="isLoading">
       <el-skeleton :rows="3" animated class="page-header-skeleton" />
       <el-row :gutter="30">
@@ -91,21 +116,42 @@
               class="editable-title"
               placeholder="合約標題"
             />
+
+            <el-radio-group
+              v-model="editModeView"
+              size="small"
+              style="margin-bottom: 10px"
+            >
+              <el-radio-button label="edit">
+                <el-icon style="margin-right: 5px"><Edit /></el-icon> 編輯
+              </el-radio-button>
+              <el-radio-button label="preview">
+                <el-icon style="margin-right: 5px"><View /></el-icon> 預覽
+              </el-radio-button>
+            </el-radio-group>
+
             <el-input
+              v-if="editModeView === 'edit'"
               v-model="editableData.content"
               :rows="20"
               type="textarea"
-              placeholder="請填寫合約內容..."
+              placeholder="請填寫合約內容 (支援 Markdown)..."
               class="editable-content"
             />
-          </div>
-          <div v-else>
-            <h2 class="contract-title">{{ contract.title }}</h2>
-            <div class="contract-content-readonly">
-              {{ contract.content }}
-            </div>
+            <div
+              v-else
+              class="contract-content-preview markdown-body"
+              v-html="renderedEditPreview"
+            ></div>
           </div>
 
+          <div v-else>
+            <h2 class="contract-title">{{ contract.title }}</h2>
+            <div
+              class="contract-content-readonly markdown-body"
+              v-html="renderedReadOnlyContent"
+            ></div>
+          </div>
           <div class="action-bar">
             <div v-if="contract.status === '協商中'">
               <div v-if="isEmployer">
@@ -134,7 +180,6 @@
                 同意並開始
               </el-button>
             </div>
-
             <div v-if="contract.status === '進行中'">
               <div v-if="isEmployer">
                 <el-button
@@ -286,17 +331,26 @@
 import { ref, onMounted, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { ChatDotRound } from "@element-plus/icons-vue"; // (新增) 匯入圖示
+// (修改) 匯入 需求一 Icon
+import {
+  ChatDotRound,
+  Edit,
+  View,
+  WarningFilled,
+  CircleCloseFilled,
+} from "@element-plus/icons-vue";
 import dayjs from "dayjs";
+import { marked } from "marked";
+
 import {
   getContractById,
   updateContractDetails,
   updateContractStatus,
   deleteContract,
 } from "@/api/contract.js";
-import { createChatRoom } from "@/api/message.js"; // (新增) 匯入
+import { createChatRoom } from "@/api/message.js";
 import { useAuthStore } from "@/store/authStore.js";
-import { useChatStore } from "@/store/chatStore.js"; // (新增) 匯入
+import { useChatStore } from "@/store/chatStore.js";
 
 const props = defineProps({
   contractId: {
@@ -306,11 +360,11 @@ const props = defineProps({
 });
 const router = useRouter();
 const authStore = useAuthStore();
-const chatStore = useChatStore(); // (新增) 取得 chat store 實例
+const chatStore = useChatStore();
 
 const isLoading = ref(true);
 const isSubmitting = ref(false);
-const isChatLoading = ref(false); // (新增) 聊天室按鈕 loading 狀態
+const isChatLoading = ref(false);
 const contract = ref(null);
 const editableData = ref({
   title: "",
@@ -319,6 +373,64 @@ const editableData = ref({
   end_date: null,
 });
 
+const editModeView = ref("edit");
+
+// (新增) 需求一：進度條邏輯
+const activeStep = computed(() => {
+  if (!contract.value) return 0;
+  switch (contract.value.status) {
+    case "協商中":
+      return 0;
+    case "進行中":
+    case "雇主請求修改":
+    case "工作者請求修改":
+    case "雇主請求終止":
+    case "工作者請求終止":
+      return 1; // 停在 "進行中"
+    case "工作者要求驗收":
+      return 2; // 停在 "驗收中"
+    case "已完成":
+      return 4; // 完成 (注意：el-steps 總數為 4，active 4 會標記全部完成)
+    case "終止":
+      return 1; // 停在 "進行中" (但會顯示 error)
+    default:
+      return 0;
+  }
+});
+
+const stepStatus = computed(() => {
+  if (!contract.value) return "process";
+  switch (contract.value.status) {
+    case "終止":
+      return "error";
+    case "雇主請求修改":
+    case "工作者請求修改":
+    case "雇主請求終止":
+    case "工作者請求終止":
+      return "warning"; // 處理中 (黃色)
+    case "已完成":
+      return "success";
+    default:
+      return "process"; // 正常 (藍色)
+  }
+});
+// (新增結束)
+
+// ... (Markdown 渲染邏輯不變) ...
+const renderedReadOnlyContent = computed(() => {
+  if (contract.value && contract.value.content) {
+    return marked(contract.value.content);
+  }
+  return "";
+});
+const renderedEditPreview = computed(() => {
+  if (editableData.value && editableData.value.content) {
+    return marked(editableData.value.content);
+  }
+  return "<p><i>(無內容可預覽)</i></p>";
+});
+
+// ... (currentUser, isEmployer, isFreelancer computed 不變) ...
 const currentUser = computed(() => authStore.user);
 const isEmployer = computed(() => {
   return (
@@ -333,6 +445,7 @@ const isFreelancer = computed(() => {
   );
 });
 
+// ... (onMounted, handleGoToChat, handleSaveDetails, handleDelete, getActionText, handleUpdateStatus, goBack, formatTime, statusTagType 都不變) ...
 onMounted(async () => {
   isLoading.value = true;
   try {
@@ -351,29 +464,18 @@ onMounted(async () => {
   isLoading.value = false;
 });
 
-// --- (新增) M8.1 聊天室邏輯 ---
 async function handleGoToChat() {
   if (!contract.value) return;
 
   isChatLoading.value = true;
   try {
-    // 1. 呼叫 API 建立聊天室 (後端會處理冪等性)
-    //
     const res = await createChatRoom(
       contract.value.project.project_id,
-      // 修正點 2: 移除了這裡多餘的 "A" 字元
       contract.value.freelancer.user_id
     );
-    const room = res.data; // 這是 RoomOut 物件
-
-    // 2. (可選) 更新 store 中的房間列表
+    const room = res.data;
     await chatStore.fetchRooms();
-
-    // 3. (重要) 讓 chatStore 選中這個房間 (這會觸發 WS 連線)
-    //
     await chatStore.selectRoom(room.room_id);
-
-    // 4. 導航到聊天頁面
     router.push("/chat");
   } catch (err) {
     ElMessage.error(err.response?.data?.detail || "進入聊天室失敗");
@@ -381,9 +483,7 @@ async function handleGoToChat() {
     isChatLoading.value = false;
   }
 }
-// --- (新增結束) ---
 
-// --- (M7.3) 雇主動作 (保持不變) ---
 async function handleSaveDetails() {
   isSubmitting.value = true;
   try {
@@ -416,12 +516,10 @@ async function handleDelete() {
   isSubmitting.value = false;
 }
 
-// --- ( M7 狀態機重構 ) ---
-// (修改) 更新 actionText Map 和 handleUpdateStatus
 const getActionText = (newStatus) => {
   const map = {
-    進行中: "同意並開始合約", // (來自 協商中) 或 (來自 拒絕修改/終止)
-    協商中: "同意修改", // (來自 請求修改)
+    進行中: "同意並開始合約",
+    協商中: "同意修改",
     雇主請求修改: "請求修改",
     工作者請求修改: "請求修改",
     雇主請求終止: "請求終止",
@@ -430,7 +528,6 @@ const getActionText = (newStatus) => {
     已完成: "驗收通過",
     終止: "同意終止",
   };
-  // (處理 "拒絕" 情況，它們的目標狀態都是 '進行中')
   if (
     newStatus === "進行中" &&
     (contract.value.status.includes("請求修改") ||
@@ -438,17 +535,14 @@ const getActionText = (newStatus) => {
   ) {
     return "拒絕";
   }
-  // (處理 "退回修正" 情況)
   if (newStatus === "進行中" && contract.value.status === "工作者要求驗收") {
     return "退回修正";
   }
   return map[newStatus] || "更新狀態";
 };
 
-// (修改) 更新合約狀態函式
 async function handleUpdateStatus(newStatus) {
   const actionText = getActionText(newStatus);
-
   try {
     await ElMessageBox.confirm(
       `您確定要執行「${actionText}」嗎？`,
@@ -460,13 +554,10 @@ async function handleUpdateStatus(newStatus) {
             : "primary",
       }
     );
-
     isSubmitting.value = true;
     const res = await updateContractStatus(props.contractId, newStatus);
     contract.value = res.data;
     ElMessage.success(`狀態已更新為：${newStatus}`);
-
-    // (M7.3) 如果狀態退回協商中，雇主可能需要重新編輯
     if (newStatus === "協商中") {
       editableData.value = {
         title: res.data.title,
@@ -481,16 +572,12 @@ async function handleUpdateStatus(newStatus) {
   }
   isSubmitting.value = false;
 }
-// --- ( M7 修正結束 ) ---
 
-// --- 格式化函式 ---
 const goBack = () => router.back();
 const formatTime = (time) => {
   return time ? dayjs(time).format("YYYY-MM-DD HH:mm") : "N/A";
 };
 
-// --- ( M7 狀態機重構 ) ---
-// (修改) 更新狀態標籤
 const statusTagType = (status) => {
   switch (status) {
     case "協商中":
@@ -499,7 +586,7 @@ const statusTagType = (status) => {
       return "primary";
     case "雇主請求修改":
     case "工作者請求修改":
-    case "工作者要求驗U+6536":
+    case "工作者要求驗收":
       return "warning";
     case "雇主請求終止":
     case "工作者請求終止":
@@ -512,11 +599,9 @@ const statusTagType = (status) => {
       return "";
   }
 };
-// --- ( M7 修正結束 ) ---
 </script>
 
 <style lang="scss" scoped>
-/* (Style 保持不變) */
 .contract-view {
   padding: 20px;
 }
@@ -526,6 +611,36 @@ const statusTagType = (status) => {
   padding: 10px 20px;
   border-radius: 4px;
 }
+/* (新增) 需求一：進度條樣式 */
+.steps-card {
+  margin-bottom: 20px;
+  border: 1px solid var(--el-border-color-light);
+  :deep(.el-card__body) {
+    padding-top: 25px;
+    padding-bottom: 15px;
+  }
+}
+.step-warning,
+.step-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 14px;
+  margin-top: 15px;
+  padding: 8px;
+  border-radius: 4px;
+}
+.step-warning {
+  color: var(--el-color-warning-dark-2);
+  background-color: var(--el-color-warning-light-9);
+}
+.step-error {
+  color: var(--el-color-error-dark-2);
+  background-color: var(--el-color-error-light-9);
+}
+/* (新增結束) */
+
 .page-header-skeleton {
   height: 40px;
   margin-bottom: 20px;
@@ -541,8 +656,9 @@ const statusTagType = (status) => {
   font-weight: bold;
 }
 .detail-subtitle {
+  /* (修改) 需求二：使用 CSS 變數 */
   font-size: 0.9rem;
-  color: #909399;
+  color: var(--el-text-color-secondary); /* 原本: #909399 */
   font-weight: bold;
   margin-top: 20px;
   margin-bottom: 10px;
@@ -563,16 +679,72 @@ const statusTagType = (status) => {
   margin-top: 0;
   margin-bottom: 20px;
 }
-.contract-content-readonly {
+.contract-content-readonly,
+.contract-content-preview {
+  /* (修改) 需求二：使用 CSS 變數 */
   font-size: 14px;
   line-height: 1.6;
-  color: #303133;
-  white-space: pre-wrap;
-  background-color: #fcfcfc;
-  border: 1px solid #f0f0f0;
+  color: var(--el-text-color-primary); /* 原本: #303133 */
+  background-color: var(--el-fill-color-lighter); /* 原本: #fcfcfc */
+  border: 1px solid var(--el-border-color-lighter); /* 原本: #f0f0f0 */
   padding: 15px;
   border-radius: 4px;
   min-height: 400px;
+}
+:deep(.markdown-body) {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    margin-top: 1.2em;
+    margin-bottom: 0.6em;
+    font-weight: 600;
+  }
+  h1 {
+    font-size: 1.8em;
+  }
+  h2 {
+    font-size: 1.5em;
+    /* (修改) 需求二：使用 CSS 變數 */
+    border-bottom: 1px solid var(--el-border-color-lighter); /* 原本: #eee */
+    padding-bottom: 5px;
+  }
+  h3 {
+    font-size: 1.25em;
+  }
+  p {
+    margin-bottom: 1em;
+  }
+  ul,
+  ol {
+    padding-left: 2em;
+    margin-bottom: 1em;
+  }
+  li {
+    margin-bottom: 0.4em;
+  }
+  code {
+    /* (修改) 需求二：使用 CSS 變數 */
+    background-color: var(--el-fill-color-light); /* 原本: #f0f0f0 */
+    padding: 0.2em 0.4em;
+    border-radius: 3px;
+    font-family: monospace;
+  }
+  pre {
+    background-color: var(--el-fill-color-lighter); /* 原本: #f5f5f5 */
+    padding: 10px;
+    border-radius: 4px;
+    overflow-x: auto;
+  }
+  blockquote {
+    /* (修改) 需求二：使用 CSS 變數 */
+    border-left: 4px solid var(--el-border-color-light); /* 原本: #ddd */
+    padding-left: 10px;
+    color: var(--el-text-color-secondary); /* 原本: #777 */
+    margin-left: 0;
+  }
 }
 .action-bar {
   margin-top: 20px;
@@ -582,7 +754,6 @@ const statusTagType = (status) => {
   justify-content: flex-end;
   gap: 10px;
 }
-/* (新增) Chat 按鈕樣式 */
 .chat-button {
   width: 100%;
   margin-top: 15px;

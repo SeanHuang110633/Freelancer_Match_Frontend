@@ -17,7 +17,7 @@
     <el-form-item label="Email" prop="email">
       <el-input
         v-model="form.email"
-        placeholder="請輸入 Email"
+        placeholder="Enter your Email"
         :prefix-icon="User"
         size="large"
         required
@@ -28,7 +28,7 @@
       <el-input
         v-model="form.password"
         type="password"
-        placeholder="請輸入密碼"
+        placeholder="Enter your password"
         :prefix-icon="Lock"
         size="large"
         show-password
@@ -44,12 +44,12 @@
         native-type="submit"
         :loading="isLoading"
       >
-        {{ isLoading ? "......" : "Login" }}
+        {{ isLoading ? "Loading..." : "Login" }}
       </el-button>
     </el-form-item>
 
     <el-form-item class="text-center">
-      <span>No account yet?</span>
+      <span style="margin-right: 20px">No account yet? </span>
       <el-link type="primary" @click="$emit('switch-mode')">
         Register right now
       </el-link>
@@ -63,7 +63,7 @@ import { useRouter } from "vue-router";
 import { useAuthStore } from "@/store/authStore.js";
 import { User, Lock } from "@element-plus/icons-vue";
 
-// 定義 emit 事件，以便父層 (AuthView) 監聽
+// 定義 emit 事件
 const emit = defineEmits(["switch-mode"]);
 
 const form = ref({
@@ -87,7 +87,8 @@ const handleLogin = async () => {
   if (success) {
     router.push("/");
   } else {
-    errorMessage.value = "登入失敗，請檢查您的帳號或密碼。";
+    // 錯誤訊息改為英文
+    errorMessage.value = "Login failed. Please check your email or password.";
   }
 };
 </script>
@@ -102,4 +103,32 @@ const handleLogin = async () => {
 .mb-20 {
   margin-bottom: 20px;
 }
+
+/* 覆蓋el-button顏色 */
+.el-button--primary {
+  background-color: #a79c7fb0;
+  border-color: #a79c7fb0;
+
+  /* hover */
+  &:hover {
+    background-color: #7d7561b0;
+    border-color: #7d7561b0;
+  }
+}
+
+/* 覆蓋el-link顏色 */
+.el-link--primary {
+  color: #756f5e;
+  /* 去除下劃線 */
+  text-decoration: none;
+
+  /* hover */
+  &:hover {
+    color: #616130;
+    font-weight: bold;
+    text-decoration: none;
+  }
+}
+
+/* 覆蓋 */
 </style>

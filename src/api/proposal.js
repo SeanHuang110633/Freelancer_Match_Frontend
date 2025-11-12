@@ -79,3 +79,48 @@ export const updateProposalStatus = (proposalId, status) => {
   // 後端 router (Step 3) 期望的 Body 格式為： { "status": "..." }
   return http.patch(`/proposals/${proposalId}/status`, { status });
 };
+
+/**
+ * (新增) (工作者) 獲取單一提案詳情
+ *
+ * 呼叫： GET /proposals/{proposal_id}
+ *
+ * @param {string} proposalId 提案 ID
+ * @returns {Promise<ProposalOutWithFullProject>}
+ */
+export const getProposalDetails = (proposalId) => {
+  return http.get(`/proposals/${proposalId}`);
+};
+
+/**
+ * (新增) (工作者) 更新提案
+ *
+ * 呼叫： PUT /proposals/{proposal_id}
+ *
+ * @param {string} proposalId 提案 ID
+ * @param {string} briefDescription 提案簡述
+ * @param {File | null} attachmentFile 附件 (PDF 檔案)
+ * @returns {Promise<ProposalOut>}
+ */
+export const updateProposal = (
+  proposalId,
+  briefDescription,
+  attachmentFile
+) => {
+  // 1. 建立 FormData 物件
+  const formData = new FormData();
+
+  // 2. 附加表單欄位
+  formData.append("brief_description", briefDescription);
+
+  // 3. 附加檔案
+  if (attachmentFile) {
+    formData.append("attachment", attachmentFile);
+  }
+
+  // 4. 發送 PUT 請求
+  return http.put(`/proposals/${proposalId}`, formData, {
+    // (重要) 確保 Content-Type 是 multipart/form-data
+    // (Axios 看到 FormData 通常會自動設定)
+  });
+};

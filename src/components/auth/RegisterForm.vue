@@ -22,21 +22,21 @@
       class="mb-20"
     />
 
-    <el-form-item label="Email (帳號)" prop="email">
+    <el-form-item label="Email (Account)" prop="email">
       <el-input
         v-model="form.email"
-        placeholder="請輸入 Email"
+        placeholder="Enter your Email"
         :prefix-icon="User"
         size="large"
         required
       />
     </el-form-item>
 
-    <el-form-item label="密碼" prop="password">
+    <el-form-item label="Password" prop="password">
       <el-input
         v-model="form.password"
         type="password"
-        placeholder="請輸入密碼 (至少8碼英數混合)"
+        placeholder="Enter password (at least 8 mixed characters)"
         :prefix-icon="Lock"
         size="large"
         show-password
@@ -45,10 +45,10 @@
       />
     </el-form-item>
 
-    <el-form-item label="選擇您的角色" prop="role" class="text-center">
+    <el-form-item label="Select your role" prop="role" class="text-center">
       <el-radio-group v-model="form.role" size="large">
-        <el-radio label="自由工作者" />
-        <el-radio label="雇主" />
+        <el-radio label="Freelancer" />
+        <el-radio label="Employer" />
       </el-radio-group>
     </el-form-item>
 
@@ -61,29 +61,31 @@
         :loading="isLoading"
         :disabled="!!successMessage"
       >
-        {{ isLoading ? "註冊中..." : "註冊" }}
+        {{ isLoading ? "Registering..." : "Register" }}
       </el-button>
     </el-form-item>
 
     <el-form-item class="text-center">
-      <span>已有帳號？</span>
-      <el-link type="primary" @click="$emit('switch-mode')"> 前往登入 </el-link>
+      <span>Already have an account?</span>
+      <el-link type="primary" @click="$emit('switch-mode')">
+        Go to Login
+      </el-link>
     </el-form-item>
   </el-form>
 </template>
 
 <script setup>
 import { ref } from "vue";
-import { useAuthStore } from "@/store/authStore.js";
+// import { useAuthStore } from "@/store/authStore.js"; // 註冊不需要 store
 import { User, Lock } from "@element-plus/icons-vue";
-import { register as apiRegister } from "@/api/auth.js"; // 匯入註冊 API
+import { register as apiRegister } from "@/api/auth.js";
 
 const emit = defineEmits(["switch-mode"]);
 
 const form = ref({
   email: "",
   password: "",
-  role: "自由工作者", // 預設角色
+  role: "Freelancer", // 預設角色改為英文
 });
 const isLoading = ref(false);
 const errorMessage = ref("");
@@ -94,13 +96,13 @@ const handleRegister = async () => {
   errorMessage.value = "";
   successMessage.value = "";
 
-  // (TODO: 稍後可用 VeeValidate 強化密碼規則)
-
   try {
     const response = await apiRegister(form.value);
-    successMessage.value = `帳號 ${response.data.email} 註冊成功！請切換登入。`;
+    // 成功訊息改為英文
+    successMessage.value = `Account ${response.data.email} registered successfully! Please switch to login.`;
   } catch (error) {
-    errorMessage.value = error.response?.data?.detail || "註冊失敗";
+    // 錯誤訊息改為英文
+    errorMessage.value = error.response?.data?.detail || "Registration failed";
   }
 
   isLoading.value = false;

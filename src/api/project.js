@@ -52,3 +52,24 @@ export const getProjectById = (projectId) => {
 export const getMyProjects = () => {
   return http.get("/projects/my");
 };
+
+/**
+ * (新增) (雇主) 更新案件內容
+ * @param {string} projectId
+ * @param {object} projectData - 符合 ProjectUpdate schema
+ * @returns {Promise}
+ */
+export const updateProject = (projectId, projectData) => {
+  return http.put(`/projects/${projectId}`, projectData);
+};
+
+/**
+ * (新增) (雇主) 更新案件狀態
+ * @param {string} projectId
+ * @param {string} status - e.g., "已關閉"
+ * @returns {Promise}
+ */
+export const updateProjectStatus = (projectId, status) => {
+  // 後端 ProjectStatusUpdate schema 期望 { "status": "..." }
+  return http.patch(`/projects/${projectId}/status`, { status });
+};

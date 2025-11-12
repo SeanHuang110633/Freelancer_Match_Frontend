@@ -8,6 +8,7 @@ import ProjectDetailView from "@/views/project/ProjectDetailView.vue";
 import FreelancerDetailView from "@/views/freelancer/FreelancerDetailView.vue";
 import MyJobListView from "@/views/employer/MyJobListView.vue";
 import ProposalManagementView from "@/views/employer/ProposalManagementView.vue";
+import MyProposalListView from "@/views/freelancer/MyProposalListView.vue";
 
 // --- (M7) 匯入 M7 頁面 ---
 // (規劃放 /views/shared/)
@@ -18,6 +19,11 @@ import ContractView from "@/views/shared/ContractView.vue";
 
 // --- (M8.1 新增) 匯入 M8 聊天頁面 ---
 import ChatView from "@/views/shared/ChatView.vue";
+import JobEditView from "@/views/employer/JobEditView.vue";
+
+import ProposalDetailView from "@/views/freelancer/ProposalDetailView.vue";
+
+import FreelancerSearchView from "@/views/employer/FreelancerSearchView.vue";
 
 const routes = [
   {
@@ -60,12 +66,34 @@ const routes = [
     name: "FreelancerDetail",
     component: FreelancerDetailView,
     meta: { requiresAuth: true },
-  }, // (新增) 雇主查看自己刊登的案件
+  },
+  // (新增) 雇主搜尋工作者路由
+  {
+    path: "/find-freelancers",
+    name: "FreelancerSearch",
+    component: FreelancerSearchView,
+    meta: { requiresRole: "雇主" },
+  },
+  // (新增) 雇主查看自己刊登的案件
   {
     path: "/my-jobs",
     name: "MyJobList",
     component: MyJobListView,
     meta: { requiresRole: "雇主" }, // 限制只有雇主能訪問
+  },
+  // (新增) 編輯案件的路由
+  {
+    path: "/projects/:projectId/edit",
+    name: "JobEdit",
+    component: JobEditView,
+    props: true, // 這會自動將 projectId 傳入 JobEditView.vue 作為 prop
+    meta: { requiresRole: "雇主" },
+  },
+  {
+    path: "/my-proposals",
+    name: "MyProposalList",
+    component: MyProposalListView,
+    meta: { requiresRole: "自由工作者" },
   },
   {
     path: "/projects/:projectId/proposals",
@@ -73,6 +101,14 @@ const routes = [
     component: ProposalManagementView,
     props: true, // 允許 :projectId 作為 props 傳入
     meta: { requiresRole: "雇主" },
+  },
+  // (新增) 需求三：工作者提案詳情頁
+  {
+    path: "/my-proposals/:proposalId",
+    name: "ProposalDetail",
+    component: ProposalDetailView,
+    props: true, // 允許 :proposalId 作為 props 傳入
+    meta: { requiresRole: "自由工作者" },
   },
   // --- (M7) 新增 M7 路由 ---
   {
