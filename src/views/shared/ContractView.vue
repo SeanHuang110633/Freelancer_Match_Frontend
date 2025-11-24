@@ -48,12 +48,13 @@
         <el-card class="contract-card" shadow="never">
           <template #header>
             <div class="card-header">
-              <span>合約狀態</span>
+              <span>合約概況</span>
               <el-tag :type="statusTagType(contract.status)" size="small">
                 {{ contract.status }} (v{{ contract.version }})
               </el-tag>
             </div>
           </template>
+
           <el-descriptions :column="1" border direction="vertical">
             <el-descriptions-item label="甲方 (雇主)">
               {{ contract.employer.email }}
@@ -74,7 +75,10 @@
             <el-icon class="el-icon--left"><ChatDotRound /></el-icon>
             前往聊天室
           </el-button>
+
+          <div class="section-divider"></div>
           <h3 class="detail-subtitle">合約條款</h3>
+
           <div v-if="isEmployer && contract.status === '協商中'">
             <el-form :model="editableData" label-position="top">
               <el-form-item label="合約金額 (TWD)">
@@ -82,6 +86,7 @@
                   v-model="editableData.amount"
                   :min="0"
                   controls-position="right"
+                  style="width: 100%"
                 />
               </el-form-item>
               <el-form-item label="履約期限 (End Date)">
@@ -89,6 +94,7 @@
                   v-model="editableData.end_date"
                   type="datetime"
                   placeholder="選擇截止日期"
+                  style="width: 100%"
                 />
               </el-form-item>
             </el-form>
@@ -101,6 +107,154 @@
               {{ formatTime(contract.end_date) }}
             </el-descriptions-item>
           </el-descriptions>
+
+          <div class="section-divider"></div>
+          <div class="section-block">
+            <div class="section-header-row">
+              <h3 class="detail-subtitle no-margin">交付物</h3>
+              <el-button
+                v-if="isFreelancer && canUpload"
+                type="primary"
+                link
+                size="small"
+                @click="openUploadDialog"
+              >
+                <el-icon><Upload /></el-icon> 上傳
+              </el-button>
+            </div>
+
+            <div v-if="deliverables.length === 0" class="empty-placeholder">
+              <el-empty :image-size="60" description="尚無交付物" />
+            </div>
+
+            <div v-else class="deliverables-list">
+              <div
+                v-for="item in deliverables"
+                :key="item.deliverable_id"
+                class="deliverable-item"
+              >
+                <div class="d-header">
+                  <span class="d-date">{{ formatTime(item.created_at) }}</span>
+                  <el-tag
+                    size="small"
+                    :type="
+                      item.acceptance_status === '待驗收'
+                        ? 'info'
+                        : item.acceptance_status === '通過'
+                        ? 'success'
+                        : 'danger'
+                    "
+                  >
+                    {{ item.acceptance_status }}
+                  </el-tag>
+                </div>
+                <div class="d-desc">{{ item.description }}</div>
+                <div class="d-actions">
+                  <el-link
+                    v-if="item.file_url"
+                    :href="getFileUrl(item.file_url)"
+                    target="_blank"
+                    type="primary"
+                    :underline="false"
+                  >
+                    <el-icon><Document /></el-icon> 下載
+                  </el-link>
+                  <div
+                    v-if="
+                      isFreelancer &&
+                      canUpload &&
+                      item.acceptance_status === '待驗收'
+                    "
+                  >
+                    <el-button
+                      link
+                      type="primary"
+                      size="small"
+                      @click="openEditDialog(item)"
+                    >
+                      編輯
+                    </el-button>
+                    <el-button
+                      link
+                      type="danger"
+                      size="small"
+                      @click="handleDeleteDeliverable(item)"
+                    >
+                      撤回
+                    </el-button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="contract.status === '已完成'">
+            <div class="section-divider"></div>
+            <div class="section-block">
+              <div class="section-header-row">
+                <h3 class="detail-subtitle no-margin">雙向評價</h3>
+                <el-button
+                  v-if="!myReview"
+                  type="primary"
+                  size="small"
+                  @click="openReviewModal"
+                  link
+                >
+                  <el-icon><Star /></el-icon> 撰寫評價
+                </el-button>
+              </div>
+
+              <div v-if="reviews.length === 0" class="empty-placeholder">
+                <el-empty :image-size="60" description="尚無評價" />
+              </div>
+
+              <div v-else class="reviews-list">
+                <div v-if="myReview" class="review-item my-review">
+                  <div class="review-header">
+                    <span class="reviewer-label">您給予的評價</span>
+                    <span class="review-date">{{
+                      formatTime(myReview.created_at)
+                    }}</span>
+                  </div>
+                  <div class="review-rating-summary">
+                    <el-rate
+                      v-model="myReviewAverage"
+                      disabled
+                      show-score
+                      text-color="#ff9900"
+                      score-template="{value} 分"
+                    />
+                  </div>
+                  <div class="review-comment">
+                    {{ myReview.comment || "(無文字評語)" }}
+                  </div>
+                </div>
+
+                <div v-if="partnerReview" class="review-item partner-review">
+                  <div class="review-header">
+                    <span class="reviewer-label">
+                      {{ isEmployer ? "工作者" : "雇主" }}給予的評價
+                    </span>
+                    <span class="review-date">{{
+                      formatTime(partnerReview.created_at)
+                    }}</span>
+                  </div>
+                  <div class="review-rating-summary">
+                    <el-rate
+                      v-model="partnerReviewAverage"
+                      disabled
+                      show-score
+                      text-color="#ff9900"
+                      score-template="{value} 分"
+                    />
+                  </div>
+                  <div class="review-comment">
+                    {{ partnerReview.comment || "(無文字評語)" }}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </el-card>
       </el-col>
 
@@ -218,6 +372,7 @@
                   type="primary"
                   @click="handleUpdateStatus('工作者要求驗收')"
                   :loading="isSubmitting"
+                  :disabled="deliverables.length === 0"
                   >請求驗收</el-button
                 >
               </div>
@@ -324,6 +479,57 @@
         </el-card>
       </el-col>
     </el-row>
+
+    <el-dialog
+      v-model="uploadDialogVisible"
+      :title="isEditingDeliverable ? '編輯交付物' : '上傳交付物'"
+      width="500px"
+      align-center
+    >
+      <el-form :model="uploadForm" label-position="top">
+        <el-form-item label="說明 (必填)">
+          <el-input
+            v-model="uploadForm.description"
+            type="textarea"
+            placeholder="請描述此交付物內容..."
+          />
+        </el-form-item>
+        <el-form-item label="檔案 (選填)">
+          <input
+            type="file"
+            @change="handleFileChange"
+            accept=".pdf,.zip,.doc,.docx"
+          />
+          <div class="file-hint" v-if="isEditingDeliverable">
+            若不更新檔案，請勿選擇。
+          </div>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="uploadDialogVisible = false">取消</el-button>
+          <el-button
+            type="primary"
+            @click="submitUpload"
+            :loading="isUploading"
+            :disabled="
+              !uploadForm.description ||
+              (!uploadForm.file && !isEditingDeliverable)
+            "
+          >
+            {{ isEditingDeliverable ? "更新" : "上傳" }}
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
+
+    <ReviewModal
+      v-if="contract"
+      v-model:visible="showReviewModal"
+      :contract-id="contract.contract_id"
+      :is-employer="isEmployer"
+      @review-submitted="handleReviewSubmitted"
+    />
   </div>
 </template>
 
@@ -331,16 +537,19 @@
 import { ref, onMounted, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
-// (修改) 匯入 需求一 Icon
 import {
   ChatDotRound,
   Edit,
   View,
   WarningFilled,
   CircleCloseFilled,
+  Upload,
+  Document,
+  Star, // (新增 Icon)
 } from "@element-plus/icons-vue";
 import dayjs from "dayjs";
 import { marked } from "marked";
+import { API_BASE_URL } from "@/config/env.js";
 
 import {
   getContractById,
@@ -348,9 +557,21 @@ import {
   updateContractStatus,
   deleteContract,
 } from "@/api/contract.js";
+import {
+  getDeliverables,
+  uploadDeliverable,
+  updateDeliverable,
+  deleteDeliverable,
+} from "@/api/deliverable.js";
+// (新增) Review API
+import { getContractReviews } from "@/api/review.js";
+
 import { createChatRoom } from "@/api/message.js";
 import { useAuthStore } from "@/store/authStore.js";
 import { useChatStore } from "@/store/chatStore.js";
+
+// (新增) Review Modal 元件
+import ReviewModal from "@/components/ReviewModal.vue";
 
 const props = defineProps({
   contractId: {
@@ -375,7 +596,20 @@ const editableData = ref({
 
 const editModeView = ref("edit");
 
-// (新增) 需求一：進度條邏輯
+const deliverables = ref([]);
+const uploadDialogVisible = ref(false);
+const isUploading = ref(false);
+const isEditingDeliverable = ref(false);
+const currentEditingId = ref(null);
+const uploadForm = ref({
+  description: "",
+  file: null,
+});
+
+// (新增) Review State
+const reviews = ref([]);
+const showReviewModal = ref(false);
+
 const activeStep = computed(() => {
   if (!contract.value) return 0;
   switch (contract.value.status) {
@@ -386,13 +620,13 @@ const activeStep = computed(() => {
     case "工作者請求修改":
     case "雇主請求終止":
     case "工作者請求終止":
-      return 1; // 停在 "進行中"
+      return 1;
     case "工作者要求驗收":
-      return 2; // 停在 "驗收中"
+      return 2;
     case "已完成":
-      return 4; // 完成 (注意：el-steps 總數為 4，active 4 會標記全部完成)
+      return 4;
     case "終止":
-      return 1; // 停在 "進行中" (但會顯示 error)
+      return 1;
     default:
       return 0;
   }
@@ -407,16 +641,18 @@ const stepStatus = computed(() => {
     case "工作者請求修改":
     case "雇主請求終止":
     case "工作者請求終止":
-      return "warning"; // 處理中 (黃色)
+      return "warning";
     case "已完成":
       return "success";
     default:
-      return "process"; // 正常 (藍色)
+      return "process";
   }
 });
-// (新增結束)
 
-// ... (Markdown 渲染邏輯不變) ...
+const canUpload = computed(() => {
+  return contract.value && contract.value.status === "進行中";
+});
+
 const renderedReadOnlyContent = computed(() => {
   if (contract.value && contract.value.content) {
     return marked(contract.value.content);
@@ -430,7 +666,6 @@ const renderedEditPreview = computed(() => {
   return "<p><i>(無內容可預覽)</i></p>";
 });
 
-// ... (currentUser, isEmployer, isFreelancer computed 不變) ...
 const currentUser = computed(() => authStore.user);
 const isEmployer = computed(() => {
   return (
@@ -445,7 +680,46 @@ const isFreelancer = computed(() => {
   );
 });
 
-// ... (onMounted, handleGoToChat, handleSaveDetails, handleDelete, getActionText, handleUpdateStatus, goBack, formatTime, statusTagType 都不變) ...
+// (新增) Review Computed Properties
+const myReview = computed(() => {
+  if (!currentUser.value) return null;
+  return reviews.value.find((r) => r.reviewer_id === currentUser.value.user_id);
+});
+
+const partnerReview = computed(() => {
+  if (!currentUser.value) return null;
+  return reviews.value.find((r) => r.reviewer_id !== currentUser.value.user_id);
+});
+
+// 簡易計算平均分 (UI 顯示用)
+const calculateAvg = (review) => {
+  if (!review) return 0;
+  let sum = 0;
+  // 判斷該 review 的 reviewer 是否為雇主
+  const reviewerIsEmployer =
+    review.reviewer_id === contract.value.employer.user_id;
+
+  if (reviewerIsEmployer) {
+    // 雇主評的 -> 讀取 fw 欄位
+    sum =
+      (review.rating_communication_fw || 0) +
+      (review.rating_professionalism_fw || 0) +
+      (review.rating_punctuality_fw || 0) +
+      (review.rating_quality_fw || 0);
+  } else {
+    // 工作者評的 -> 讀取 we 欄位
+    sum =
+      (review.rating_communication_we || 0) +
+      (review.rating_quality_we || 0) +
+      (review.rating_compensation_we || 0) +
+      (review.rating_process_we || 0);
+  }
+  return sum / 4;
+};
+
+const myReviewAverage = computed(() => calculateAvg(myReview.value));
+const partnerReviewAverage = computed(() => calculateAvg(partnerReview.value));
+
 onMounted(async () => {
   isLoading.value = true;
   try {
@@ -457,12 +731,120 @@ onMounted(async () => {
       amount: res.data.amount,
       end_date: res.data.end_date,
     };
+
+    await fetchDeliverables();
+
+    // (新增) 若已完成，載入評價
+    if (contract.value.status === "已完成") {
+      await fetchReviews();
+    }
   } catch (err) {
     ElMessage.error(err.response?.data?.detail || "載入合約失敗");
     router.push("/my-contracts");
   }
   isLoading.value = false;
 });
+
+async function fetchDeliverables() {
+  try {
+    const res = await getDeliverables(props.contractId);
+    deliverables.value = res.data;
+  } catch (error) {
+    console.error("載入交付物失敗", error);
+  }
+}
+
+const getFileUrl = (relativePath) => {
+  if (!relativePath) return "";
+  return `${API_BASE_URL}${relativePath}`;
+};
+
+const openUploadDialog = () => {
+  isEditingDeliverable.value = false;
+  currentEditingId.value = null;
+  uploadForm.value = { description: "", file: null };
+  uploadDialogVisible.value = true;
+};
+
+const openEditDialog = (item) => {
+  isEditingDeliverable.value = true;
+  currentEditingId.value = item.deliverable_id;
+  uploadForm.value = {
+    description: item.description,
+    file: null,
+  };
+  uploadDialogVisible.value = true;
+};
+
+const handleFileChange = (event) => {
+  const file = event.target.files[0];
+  if (file) {
+    uploadForm.value.file = file;
+  }
+};
+
+const submitUpload = async () => {
+  isUploading.value = true;
+  try {
+    if (isEditingDeliverable.value) {
+      await updateDeliverable(
+        currentEditingId.value,
+        uploadForm.value.file,
+        uploadForm.value.description
+      );
+      ElMessage.success("交付物已更新");
+    } else {
+      await uploadDeliverable(
+        props.contractId,
+        uploadForm.value.file,
+        uploadForm.value.description
+      );
+      ElMessage.success("交付物已上傳");
+    }
+    uploadDialogVisible.value = false;
+    await fetchDeliverables();
+  } catch (error) {
+    const msg = error.response?.data?.detail || "操作失敗";
+    ElMessage.error(msg);
+  } finally {
+    isUploading.value = false;
+  }
+};
+
+const handleDeleteDeliverable = async (item) => {
+  try {
+    await ElMessageBox.confirm(
+      "確定要撤回此交付物嗎？此操作將永久刪除檔案。",
+      "確認撤回",
+      { type: "warning" }
+    );
+    await deleteDeliverable(item.deliverable_id);
+    ElMessage.success("已撤回交付物");
+    await fetchDeliverables();
+  } catch (error) {
+    if (error !== "cancel") {
+      ElMessage.error(error.response?.data?.detail || "撤回失敗");
+    }
+  }
+};
+
+// (新增) Review Functions
+async function fetchReviews() {
+  try {
+    const res = await getContractReviews(props.contractId);
+    reviews.value = res.data;
+  } catch (error) {
+    console.error("Fetch reviews failed", error);
+  }
+}
+
+const openReviewModal = () => {
+  showReviewModal.value = true;
+};
+
+const handleReviewSubmitted = async () => {
+  await fetchReviews();
+};
 
 async function handleGoToChat() {
   if (!contract.value) return;
@@ -566,6 +948,10 @@ async function handleUpdateStatus(newStatus) {
         end_date: res.data.end_date,
       };
     }
+    // (新增) 狀態變更為已完成時，重新載入評價區塊
+    if (newStatus === "已完成") {
+      await fetchReviews();
+    }
   } catch (err) {
     if (err === "cancel") return;
     ElMessage.error(err.response?.data?.detail || "狀態更新失敗");
@@ -603,7 +989,48 @@ const statusTagType = (status) => {
 
 <style lang="scss" scoped>
 .contract-view {
+  // --- Variables ---
+  --app-bg-color: rgba(250, 247, 239, 0.973);
+  --app-text-color: #616130;
+  --app-text-color-secondary: #8a8a69;
+  --app-hover-border-color: #dcd8c8;
+  --app-hover-bg-color: rgba(252, 250, 248, 1);
+  --app-accent-color: #817c5b;
+  --app-warning-color: #c6a870;
+  --app-danger-color: #b56f6f;
+  --app-info-bg-color: rgba(220, 216, 200, 0.3);
+
+  --el-text-color-primary: var(--app-text-color);
+  --el-text-color-regular: var(--app-text-color);
+  --el-text-color-secondary: var(--app-text-color-secondary);
+  --el-text-color-placeholder: #a2a287;
+
+  --el-bg-color: var(--app-bg-color);
+  --el-bg-color-overlay: var(--app-hover-bg-color);
+  --el-fill-color-light: var(--app-hover-bg-color);
+  --el-fill-color-blank: transparent;
+
+  --el-card-bg-color: var(--app-bg-color);
+  --el-card-border-color: transparent;
+
+  --el-border-color: var(--app-hover-border-color);
+  --el-border-color-lighter: rgba(220, 216, 200, 0.5);
+  --el-border-color-light: var(--app-hover-border-color);
+
+  --el-color-primary: var(--app-accent-color);
+  --el-color-primary-light-9: var(--app-info-bg-color);
+
+  --el-color-warning: var(--app-warning-color);
+  --el-color-warning-light-9: var(--app-info-bg-color);
+
+  --el-color-info: var(--app-text-color-secondary);
+  --el-color-info-light-9: var(--app-info-bg-color);
+
+  --el-color-danger: var(--app-danger-color);
+  --el-color-danger-light-9: rgba(181, 111, 111, 0.1);
+
   padding: 20px;
+  color: var(--app-text-color);
 }
 .page-header {
   margin-bottom: 20px;
@@ -611,13 +1038,13 @@ const statusTagType = (status) => {
   padding: 10px 20px;
   border-radius: 4px;
 }
-/* (新增) 需求一：進度條樣式 */
 .steps-card {
   margin-bottom: 20px;
+  background-color: rgba(250, 247, 239, 0.973);
   border: 1px solid var(--el-border-color-light);
   :deep(.el-card__body) {
-    padding-top: 25px;
-    padding-bottom: 15px;
+    padding-top: 10px;
+    padding-bottom: 10px;
   }
 }
 .step-warning,
@@ -639,7 +1066,6 @@ const statusTagType = (status) => {
   color: var(--el-color-error-dark-2);
   background-color: var(--el-color-error-light-9);
 }
-/* (新增結束) */
 
 .page-header-skeleton {
   height: 40px;
@@ -656,13 +1082,32 @@ const statusTagType = (status) => {
   font-weight: bold;
 }
 .detail-subtitle {
-  /* (修改) 需求二：使用 CSS 變數 */
   font-size: 0.9rem;
-  color: var(--el-text-color-secondary); /* 原本: #909399 */
+  color: var(--el-text-color-secondary);
   font-weight: bold;
   margin-top: 20px;
   margin-bottom: 10px;
 }
+.detail-subtitle.no-margin {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+.section-divider {
+  height: 1px;
+  background-color: var(--el-border-color-lighter);
+  margin: 20px 0;
+  border: none;
+}
+.section-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+.section-block {
+  /* 可選：給區塊一點間距 */
+}
+
 .editable-title {
   font-size: 1.5rem;
   font-weight: bold;
@@ -681,12 +1126,11 @@ const statusTagType = (status) => {
 }
 .contract-content-readonly,
 .contract-content-preview {
-  /* (修改) 需求二：使用 CSS 變數 */
   font-size: 14px;
   line-height: 1.6;
-  color: var(--el-text-color-primary); /* 原本: #303133 */
-  background-color: var(--el-fill-color-lighter); /* 原本: #fcfcfc */
-  border: 1px solid var(--el-border-color-lighter); /* 原本: #f0f0f0 */
+  color: var(--el-text-color-primary);
+  background-color: var(--el-fill-color-lighter);
+  border: 1px solid var(--el-border-color-lighter);
   padding: 15px;
   border-radius: 4px;
   min-height: 400px;
@@ -707,8 +1151,7 @@ const statusTagType = (status) => {
   }
   h2 {
     font-size: 1.5em;
-    /* (修改) 需求二：使用 CSS 變數 */
-    border-bottom: 1px solid var(--el-border-color-lighter); /* 原本: #eee */
+    border-bottom: 1px solid var(--el-border-color-lighter);
     padding-bottom: 5px;
   }
   h3 {
@@ -726,23 +1169,21 @@ const statusTagType = (status) => {
     margin-bottom: 0.4em;
   }
   code {
-    /* (修改) 需求二：使用 CSS 變數 */
-    background-color: var(--el-fill-color-light); /* 原本: #f0f0f0 */
+    background-color: var(--el-fill-color-light);
     padding: 0.2em 0.4em;
     border-radius: 3px;
     font-family: monospace;
   }
   pre {
-    background-color: var(--el-fill-color-lighter); /* 原本: #f5f5f5 */
+    background-color: var(--el-fill-color-lighter);
     padding: 10px;
     border-radius: 4px;
     overflow-x: auto;
   }
   blockquote {
-    /* (修改) 需求二：使用 CSS 變數 */
-    border-left: 4px solid var(--el-border-color-light); /* 原本: #ddd */
+    border-left: 4px solid var(--el-border-color-light);
     padding-left: 10px;
-    color: var(--el-text-color-secondary); /* 原本: #777 */
+    color: var(--el-text-color-secondary);
     margin-left: 0;
   }
 }
@@ -757,5 +1198,82 @@ const statusTagType = (status) => {
 .chat-button {
   width: 100%;
   margin-top: 15px;
+}
+
+/* Deliverables Styles */
+.deliverables-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+.deliverable-item {
+  background-color: var(--el-fill-color-light);
+  padding: 10px;
+  border-radius: 4px;
+  border: 1px solid var(--el-border-color-lighter);
+}
+.d-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 5px;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+.d-desc {
+  font-size: 14px;
+  margin-bottom: 8px;
+  white-space: pre-wrap;
+}
+.d-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+}
+.file-hint {
+  font-size: 12px;
+  color: var(--el-color-info);
+  margin-top: 5px;
+}
+.empty-placeholder {
+  padding: 10px 0;
+}
+
+/* Review Styles */
+.reviews-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+.review-item {
+  padding: 12px;
+  border-radius: 4px;
+  border: 1px solid var(--el-border-color-lighter);
+  background-color: #fff; /* 與 deliverables 區分 */
+}
+.my-review {
+  border-left: 4px solid var(--el-color-primary);
+}
+.partner-review {
+  border-left: 4px solid var(--el-color-info);
+}
+.review-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
+  margin-bottom: 8px;
+}
+.reviewer-label {
+  font-weight: bold;
+  color: var(--el-text-color-primary);
+}
+.review-comment {
+  margin-top: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  color: var(--el-text-color-regular);
 }
 </style>

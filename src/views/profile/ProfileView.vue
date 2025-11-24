@@ -335,33 +335,28 @@ const editForm = ref(null);
 // (!! 4. 新增 computed 屬性 !!)
 // 這個 computed 會自動組合出完整的頭貼 URL
 const displayedAvatarUrl = computed(() => {
-  // 確保 editForm 和 avatar_url 都存在
-  if (editForm.value && editForm.value.avatar_url) {
-    // (!! 📍 PRODUCTION / GCP DEPLOYMENT NOTE 📍 !!)
-    // 這裡的邏輯是關鍵。
-    //
-    // 情況 1 (推薦的上線方式):
-    // 您的資料庫儲存完整的 GCP Cloud Storage URL (例如 "https://storage.googleapis.com/...")。
-    // 這個 startsWith('http') 檢查 會捕捉到它，並直接使用該 URL。
-    //
-    // 情況 2 (本地開發方式):
-    // 您的資料庫儲存相對路徑 (例如 "/static/avatar/avatar_1.webp")。
-    // 這段 'else' 邏輯會將它與 API_BASE_URL (http://127.0.0.1:8000) 組合。
-    //
-    // 情況 3 (不推薦，但可行):
-    // 您的資料庫只儲存檔案名稱 (例如 "avatar_1.webp")。
-    // 您必須修改 'else' 邏輯，將 API_BASE_URL 替換為您的 GCP Bucket 基礎 URL。
-    // 例如： return `https://storage.googleapis.com/YOUR_BUCKET_NAME/${editForm.value.avatar_url}`;
-    //
-    //
-    //
-    if (editForm.value.avatar_url.startsWith("http")) {
-      //
-      return editForm.value.avatar_url;
-    }
+  // (新增) 檢查 editForm 是否已載入
+  if (!editForm.value) {
+    return null;
+  }
 
-    // 否則，組合後端 Base URL 和我們存的相對路徑
-    return `${API_BASE_URL}${editForm.value.avatar_url}`; //
+  // (新增) 根據角色決定要讀取哪個 URL 欄位
+  let imageUrl = null;
+  if (authStore.userRole === "雇主") {
+    imageUrl = editForm.value.company_logo_url; // 讀取雇主的 logo
+  } else if (authStore.userRole === "自由工作者") {
+    imageUrl = editForm.value.avatar_url; // 讀取工作者的 avatar
+  }
+
+  // (保持不變) 組合 URL 的邏輯
+  if (imageUrl) {
+    // 檢查是否為 GCS 或外部 URL
+    if (imageUrl.startsWith("http")) {
+      return imageUrl;
+    }
+    // 組合本地開發 URL (e.g., /static/...)
+    console.log("Combining avatar URL:", `${API_BASE_URL}${imageUrl}`);
+    return `${API_BASE_URL}${imageUrl}`;
   }
 
   // 如果沒有 URL，回傳 null，el-avatar 會顯示 icon
@@ -518,8 +513,52 @@ const handleUpdateSkills = async () => {
   /* 注意：這只會改變這個頁面的背景。
     要改變 "所有介面"，應在 App.vue 或 main.scss 的 body/html 上設定 
   */
-  background-color: rgba(252, 250, 248, 0.8);
+  // --- 1. Define New Palette ---
+  --app-bg-color: rgba(250, 247, 239, 0.973); // Soft beige
+  --app-text-color: #616130;
+  --app-text-color-secondary: #8a8a69;
+  --app-hover-border-color: #dcd8c8;
+  --app-hover-bg-color: rgba(252, 250, 248, 1); // More opaque
+  --app-accent-color: #817c5b; // Muted olive-brown
+  --app-warning-color: #c6a870; // Muted gold
+  --app-danger-color: #b56f6f; // Brownish-red
+  --app-info-bg-color: rgba(220, 216, 200, 0.3); // Muted beige bg for tags
+
+  // --- 2. Override Element Plus Vars ---
+  // This is the cleanest way to override the palette
+  // It will affect all children Element Plus components within this view
+  --el-text-color-primary: var(--app-text-color);
+  --el-text-color-regular: var(--app-text-color);
+  --el-text-color-secondary: var(--app-text-color-secondary);
+  --el-text-color-placeholder: #a2a287;
+
+  --el-bg-color: var(--app-bg-color);
+  --el-bg-color-overlay: var(--app-hover-bg-color);
+  --el-fill-color-light: var(--app-hover-bg-color);
+  --el-fill-color-blank: transparent; // Make backgrounds transparent
+
+  --el-card-bg-color: var(--app-bg-color);
+  --el-card-border-color: transparent; // No borders on cards by default
+
+  --el-border-color: var(--app-hover-border-color);
+  --el-border-color-lighter: rgba(220, 216, 200, 0.5);
+  --el-border-color-light: var(--app-hover-border-color);
+
+  --el-color-primary: var(--app-accent-color);
+  --el-color-primary-light-9: var(--app-info-bg-color);
+
+  --el-color-warning: var(--app-warning-color);
+  --el-color-warning-light-9: var(--app-info-bg-color);
+
+  --el-color-info: var(--app-text-color-secondary);
+  --el-color-info-light-9: var(--app-info-bg-color);
+
+  --el-color-danger: var(--app-danger-color);
+  --el-color-danger-light-9: rgba(181, 111, 111, 0.1);
+
+  // --- 3. Apply Base Styles ---
   padding: 20px;
+  color: var(--app-text-color);
   min-height: calc(100vh - 60px); // 假設 Navbar 高 60px
 }
 

@@ -58,8 +58,14 @@
 
     <el-dropdown trigger="click">
       <span class="avatar-dropdown">
-        <el-avatar :icon="UserFilled" size="default" />
-        <span class="username">{{ authStore.user?.email }}</span>
+        <el-avatar
+          :src="displayedAvatarUrl"
+          :icon="UserFilled"
+          size="default"
+        />
+
+        <span class="username">{{ displayedName }}</span>
+
         <el-icon class="el-icon--right"><arrow-down /></el-icon>
       </span>
       <template #dropdown>
@@ -79,9 +85,14 @@
 </template>
 
 <script setup>
-// (Script 內容不變)
+// (!! 1. 新增 imports !!)
+import { ref, computed, onMounted } from "vue";
 import { useAuthStore } from "@/store/authStore.js";
 import { useRouter } from "vue-router";
+// (!! 2. 新增 API import !!)
+import { getMyProfile } from "@/api/profile.js";
+import { API_BASE_URL } from "@/config/env.js"; // 匯入後端 URL
+
 import {
   UserFilled,
   ArrowDown,
@@ -99,13 +110,61 @@ import NotificationBell from "@/components/layout/NotificationBell.vue";
 const authStore = useAuthStore();
 const router = useRouter();
 
+// (!! 3. 新增 state !!)
+const profile = ref(null); // 用於儲存 Profile 資料
+
+// (!! 4. 新增 onMounted 邏輯 !!)
+// 當 Navbar 元件掛載時，去抓取 Profile
+onMounted(async () => {
+  if (authStore.isAuthenticated) {
+    try {
+      const res = await getMyProfile();
+      profile.value = res.data;
+    } catch (err) {
+      console.error("Navbar failed to load profile:", err);
+      profile.value = null; // 確保在 404 (未建立) 時為 null
+    }
+  }
+});
+
+// (!! 5. 新增 computed 屬性 (複製自 ProfileView.vue) !!)
+// 自動組合出完整的頭貼 URL
+const displayedAvatarUrl = computed(() => {
+  if (!profile.value) return null;
+
+  // 根據角色決定要讀取哪個 URL 欄位
+  let imageUrl = null;
+  if (authStore.userRole === "雇主") {
+    imageUrl = profile.value.company_logo_url;
+  } else if (authStore.userRole === "自由工作者") {
+    imageUrl = profile.value.avatar_url;
+  }
+
+  // 組合 URL
+  if (imageUrl) {
+    if (imageUrl.startsWith("http")) {
+      return imageUrl; // 已經是 GCS 完整 URL
+    }
+    return `${API_BASE_URL}${imageUrl}`; // 本地 /static/... URL
+  }
+  return null;
+});
+
+// (!! 6. 新增 computed 屬性 (用於顯示姓名) !!)
+const displayedName = computed(() => {
+  if (profile.value) {
+    // 優先顯示 Profile 中的姓名
+    return profile.value.full_name || profile.value.company_name;
+  }
+  // 如果 Profile 還沒載入或不存在，退回顯示 email
+  return authStore.user?.email;
+});
+
+// --- (以下函式保持不變) ---
 const handleMenuSelect = (index) => {
   if (index === "home") router.push("/");
   if (index === "find-jobs") router.push("/find-jobs");
-
-  // (新增)
   if (index === "find-freelancers") router.push("/find-freelancers");
-
   if (index === "post-job") router.push("/post-job");
   if (index === "my-jobs") router.push("/my-jobs");
   if (index === "my-proposals") router.push("/my-proposals");
@@ -211,6 +270,19 @@ const handleLogout = () => {
   cursor: pointer;
   outline: none;
   transition: background-color 0.3s; /* (新增) */
+
+  /* (!! 新增 !!) 確保頭貼圖片正確縮放 */
+  .el-avatar {
+    background-color: #ccc; /* 備用背景色 */
+    border: 1px solid var(--el-border-color-lighter, #eee);
+
+    :deep(img) {
+      object-fit: cover;
+      width: 100%;
+      height: 100%;
+    }
+  }
+  /* (!! 新增結束 !!) */
 
   .username {
     margin-left: 8px;

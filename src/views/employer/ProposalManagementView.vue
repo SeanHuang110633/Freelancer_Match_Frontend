@@ -1,4 +1,3 @@
-<!-- ProposalManagementView -->
 <template>
   <div class="proposal-management-view">
     <el-page-header @back="goBack" class="page-header">
@@ -113,7 +112,7 @@
             <div class="proposal-footer">
               <el-link
                 type="primary"
-                :href="proposal.attachment_url"
+                :href="resolveFileUrl(proposal.attachment_url)"
                 target="_blank"
                 :disabled="!proposal.attachment_url"
                 :underline="false"
@@ -154,18 +153,16 @@ import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { Download } from "@element-plus/icons-vue";
 import dayjs from "dayjs";
+// (新增) 匯入 API_BASE_URL
+import { API_BASE_URL } from "@/config/env.js";
 
-// (修改) 根據優化的後端，我們不再需要 getProjectById
 import {
-  getProposalsForProject, // (此函式 呼叫 GET /projects/{id}/proposals)
-  updateProposalStatus, // (此函式 呼叫 PATCH /proposals/{id}/status)
+  getProposalsForProject,
+  updateProposalStatus,
 } from "@/api/proposal.js";
 
-// --- (M7) Step 1 建立的 API ---
 import { createContract } from "@/api/contract.js";
-// --- (M7 結束) ---
 
-// 接收路由傳來的 projectId
 const props = defineProps({
   projectId: {
     type: String,
@@ -175,19 +172,30 @@ const props = defineProps({
 
 const router = useRouter();
 const isLoading = ref(true);
-const project = ref(null); // 存放案件詳情
-const proposals = ref([]); // 存放提案列表
+const project = ref(null);
+const proposals = ref([]);
 
-// (修改) onMounted 中執行「單一 API 呼叫」
+// (新增) 處理檔案 URL 的邏輯
+const resolveFileUrl = (path) => {
+  if (!path) return "";
+  // 1. 如果已經是完整 URL (GCS 模式)，直接回傳
+  if (path.startsWith("http")) {
+    return path;
+  }
+  // 2. 如果是相對路徑 (Local 模式)，拼接後端主機位址
+  const cleanPath = path.startsWith("/") ? path.slice(1) : path;
+  const cleanBase = API_BASE_URL.endsWith("/")
+    ? API_BASE_URL.slice(0, -1)
+    : API_BASE_URL;
+
+  return `${cleanBase}/${cleanPath}`;
+};
+
 onMounted(async () => {
   isLoading.value = true;
   try {
-    // 1. (關鍵) 僅呼叫一次 API
-    // (後端 已優化，`getProposalsForProject` 會回傳 ProjectWithProposalsOut)
-    const res = await getProposalsForProject(props.projectId); // 2. 設置資料
-
-    project.value = res.data; // res.data 是 project 物件 // 3. (為 loading 狀態) 替每個 proposal 物件添加 isLoading 屬性
-
+    const res = await getProposalsForProject(props.projectId);
+    project.value = res.data;
     proposals.value = res.data.proposals.map((p) => ({
       ...p,
       isLoading: false,
@@ -195,20 +203,17 @@ onMounted(async () => {
     console.log("Loaded proposals:", proposals.value);
   } catch (err) {
     ElMessage.error(err.response?.data?.detail || "載入提案資料失敗");
-    router.push("/my-jobs"); // 失敗則退回
+    router.push("/my-jobs");
   }
   isLoading.value = false;
 });
 
-// --- 格式化函式 ---
-// (goBack, formatTime, statusTagType, proposalStatusTagType ... 保持不變)
 const goBack = () => router.back();
 
 const formatTime = (time) => {
   return time ? dayjs(time).format("YYYY-MM-DD") : "N/A";
 };
 
-// 案件狀態
 const statusTagType = (status) => {
   switch (status) {
     case "招募中":
@@ -222,7 +227,6 @@ const statusTagType = (status) => {
   }
 };
 
-// 提案狀態
 const proposalStatusTagType = (status) => {
   switch (status) {
     case "已提交":
@@ -236,8 +240,6 @@ const proposalStatusTagType = (status) => {
   }
 };
 
-// --- 核心邏輯 (M6/M7) ---
-
 const handleUpdateStatus = async (proposal, newStatus) => {
   const actionText = newStatus === "已接受" ? "接受" : "拒絕";
 
@@ -246,7 +248,6 @@ const handleUpdateStatus = async (proposal, newStatus) => {
       `Attempting to ${actionText} proposal ID:`,
       proposal.proposal_id
     );
-    // 彈出確認視窗
     await ElMessageBox.confirm(
       `您確定要「${actionText}」 ${proposal.freelancer.freelancer_profile?.full_name} 的提案嗎？`,
       "確認操作",
@@ -255,43 +256,31 @@ const handleUpdateStatus = async (proposal, newStatus) => {
         cancelButtonText: "取消",
         type: "warning",
       }
-    ); // 執行操作
+    );
 
     proposal.isLoading = true;
 
-    // (M6) 呼叫 M6 API 更新提案狀態
     const res = await updateProposalStatus(proposal.proposal_id, newStatus);
 
-    // --- (M7) 接入點修改 ---
     if (newStatus === "已接受") {
-      // (M7.1) 提案接受成功，立即嘗試建立合約
       ElMessage.success("提案已接受！正在產生合約草案...");
-
       try {
-        // (M7.1) 呼叫 Step 1 建立的 API
         const contractRes = await createContract(proposal.proposal_id);
-
-        // (M7.1) 導向到 Step 2 建立的路由
         router.push(`/contracts/${contractRes.data.contract_id}`);
       } catch (contractErr) {
-        // M6 成功，但 M7 失敗 (例如合約已存在)
         console.error("建立合約失敗:", contractErr);
         ElMessage.error(contractErr.response?.data?.detail || "建立合約失敗");
       }
     } else {
-      // (M6) 拒絕提案
       ElMessage.success("提案已拒絕");
-    } // 更新前端列表中的狀態
-    // --- (M7 修改結束) ---
+    }
 
     proposal.status = res.data.status;
   } catch (err) {
-    // 捕捉 ElMessageBox 的 'cancel'
     if (err === "cancel") {
       ElMessage.info("操作已取消");
       return;
     }
-    // (M6) 捕捉 M6 (updateProposalStatus) 的錯誤
     ElMessage.error(err.response?.data?.detail || `更新提案狀態失敗`);
   } finally {
     proposal.isLoading = false;
@@ -300,7 +289,6 @@ const handleUpdateStatus = async (proposal, newStatus) => {
 </script>
 
 <style lang="scss" scoped>
-/* 複製我們上次討論的 CSS 樣式 */
 .proposal-management-view {
   padding: 20px;
 }
@@ -321,7 +309,7 @@ const handleUpdateStatus = async (proposal, newStatus) => {
 .project-details-col {
   .project-card {
     border: 1px solid var(--el-border-color-light);
-    height: 100%; // 確保卡片等高（如果需要）
+    height: 100%;
   }
   .card-header {
     display: flex;
@@ -347,7 +335,7 @@ const handleUpdateStatus = async (proposal, newStatus) => {
     font-size: 14px;
     line-height: 1.6;
     color: #303133;
-    white-space: pre-wrap; // 保留換行
+    white-space: pre-wrap;
   }
   .project-skills {
     .skill-tag {

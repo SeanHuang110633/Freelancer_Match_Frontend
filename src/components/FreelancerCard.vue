@@ -3,13 +3,12 @@
     <el-card class="freelancer-card" shadow="hover">
       <template #header>
         <div class="card-header">
-          <el-avatar :size="40" :src="profile.avatar_url" />
+          <el-avatar :size="40" :src="getFullAvatarUrl(profile.avatar_url)" />
           <div class="header-info">
             <span class="freelancer-name">{{ profile.full_name }}</span>
-            <!-- <span class="freelancer-email">{{ profile.user.email }}</span> -->
           </div>
           <el-tag effect="light" round>
-            {{ profile.reputation_score.toFixed(1) }}
+            score : {{ profile.reputation_score.toFixed(1) }}
           </el-tag>
         </div>
       </template>
@@ -48,6 +47,43 @@
 
 <script setup>
 import { User } from "@element-plus/icons-vue";
+// (!! 📍 PRODUCTION / GCP DEPLOYMENT NOTE 📍 !!)
+// 這裡是匯入您本地的後端 URL (例如 "http://127.0.0.1:8000")。
+// 當您部署到 GCP 時，您前端的 production build (例如 /config/env.production.js)
+// 必須將此變數修改為您在 GCP App Engine 或 Cloud Run 上的 "後端 API 服務 URL"。
+import { API_BASE_URL } from "@/config/env.js";
+
+// (!! 修正新增 !!)
+/**
+ * 組合完整的頭貼 URL
+ * @param {string | null} relativeUrl - 資料庫中儲存的 URL (可能是相對路徑)
+ * @returns {string | null} - 完整的、可顯示的 URL
+ */
+const getFullAvatarUrl = (relativeUrl) => {
+  if (!relativeUrl) {
+    console.log("No avatar URL provided.");
+    return null; // 回傳 null，el-avatar 會顯示 icon
+  }
+  console.log("Original avatar URL from DB:", relativeUrl);
+
+  // (!! 📍 PRODUCTION / GCP DEPLOYMENT NOTE 📍 !!)
+  // 這裡的邏輯是關鍵。
+  //
+  // 情況 1 (推薦的上線方式):
+  // 您的資料庫儲存完整的 GCP Cloud Storage URL (例如 "https://storage.googleapis.com/...")。
+  // 這個 startsWith('http') 檢查 會捕捉到它，並直接使用該 URL。
+  //
+  // 情況 2 (本地開發方式):
+  // 您的資料庫儲存相對路徑 (例如 "/static/avatar/avatar_1.webp")。
+  // 這段 'else' 邏輯會將它與 API_BASE_URL (http://127.0.0.1:8000) 組合。
+  //
+  if (relativeUrl.startsWith("http")) {
+    return relativeUrl;
+  }
+
+  // 組合後端 Base URL 和我們存的相對路徑
+  return `${API_BASE_URL}${relativeUrl}`;
+};
 
 defineProps({
   profile: {

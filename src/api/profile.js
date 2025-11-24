@@ -59,3 +59,12 @@ export const searchFreelancers = (skillTagIds = []) => {
     },
   });
 };
+
+/**
+ * (新增) 獲取指定 User ID 的雇主 Profile (公開用，含評分)
+ * 呼叫: GET /profiles/employer/{userId}
+ * (需確認後端 Router 已開放此路徑，若尚未開放需對應修改後端)
+ */
+export const getEmployerProfileByUserId = (userId) => {
+  return http.get(`/profiles/employer/${userId}`);
+};

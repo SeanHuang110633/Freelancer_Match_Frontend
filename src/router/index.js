@@ -9,6 +9,7 @@ import FreelancerDetailView from "@/views/freelancer/FreelancerDetailView.vue";
 import MyJobListView from "@/views/employer/MyJobListView.vue";
 import ProposalManagementView from "@/views/employer/ProposalManagementView.vue";
 import MyProposalListView from "@/views/freelancer/MyProposalListView.vue";
+import EmployerDetailView from "@/views/employer/EmployerDetailView.vue";
 
 // --- (M7) 匯入 M7 頁面 ---
 // (規劃放 /views/shared/)
@@ -131,6 +132,13 @@ const routes = [
     name: "Chat",
     component: ChatView,
     meta: { requiresAuth: true }, // 必須登入才能聊天
+  },
+  // (新增) 雇主詳情頁
+  {
+    path: "/employers/:userId",
+    name: "EmployerDetail",
+    component: EmployerDetailView,
+    meta: { requiresAuth: true },
   },
 ];
 

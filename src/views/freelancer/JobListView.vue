@@ -168,7 +168,55 @@ const goToProjectDetail = (projectId) => {
 
 <style lang="scss" scoped>
 .job-list-view {
-  padding: 20px; /* 給整個 view 一點 padding */
+  // --- 1. Define New Palette (From HomeView) ---
+  --app-bg-color: rgba(250, 247, 239, 0.973); // Soft beige
+  --app-text-color: #616130;
+  --app-text-color-secondary: #8a8a69;
+  --app-hover-border-color: #dcd8c8;
+  --app-hover-bg-color: rgba(252, 250, 248, 1); // More opaque
+  --app-accent-color: #817c5b; // Muted olive-brown
+  --app-warning-color: #c6a870; // Muted gold
+  --app-danger-color: #b56f6f; // Brownish-red
+  --app-info-bg-color: rgba(220, 216, 200, 0.3); // Muted beige bg for tags
+
+  // --- 2. Override Element Plus Vars (From HomeView) ---
+  --el-text-color-primary: var(--app-text-color);
+  --el-text-color-regular: var(--app-text-color);
+  --el-text-color-secondary: var(--app-text-color-secondary);
+  --el-text-color-placeholder: #a2a287;
+
+  --el-bg-color: var(--app-bg-color);
+  --el-bg-color-overlay: var(--app-hover-bg-color);
+  --el-fill-color-light: var(--app-hover-bg-color);
+  --el-fill-color-blank: transparent; // Make backgrounds transparent
+
+  --el-card-bg-color: var(--app-bg-color);
+  --el-card-border-color: transparent;
+
+  --el-border-color: var(--app-hover-border-color);
+  --el-border-color-lighter: rgba(220, 216, 200, 0.5);
+  --el-border-color-light: var(--app-hover-border-color);
+
+  // (!! 📍 Button 顏色將來自這裡 !!)
+  --el-color-primary: var(--app-accent-color);
+  --el-color-primary-light-9: var(--app-info-bg-color);
+
+  --el-color-warning: var(--app-warning-color);
+  --el-color-warning-light-9: var(--app-info-bg-color);
+
+  --el-color-info: var(--app-text-color-secondary);
+  --el-color-info-light-9: var(--app-info-bg-color);
+
+  --el-color-danger: var(--app-danger-color);
+  --el-color-danger-light-9: rgba(181, 111, 111, 0.1);
+
+  // --- 3. Apply Base Styles (From HomeView) ---
+  padding: 20px;
+  color: var(--app-text-color);
+
+  // (!! 📍 額外調整 📍 !!)
+  // 確保最小高度以顯示背景色
+  min-height: calc(100vh - 60px);
 }
 
 .filter-card {

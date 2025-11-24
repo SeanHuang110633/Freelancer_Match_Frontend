@@ -271,19 +271,57 @@ const goBack = () => {
 </script>
 
 <style lang="scss" scoped>
-/* (複製 JobCreateView.vue 的樣式) */
 .job-edit-view {
+  /* --- 1. 注入 HomeView 調色盤 --- */
+  --app-bg-color: rgba(250, 247, 239, 0.973);
+  --app-text-color: #616130;
+  --app-text-color-secondary: #8a8a69;
+  --app-hover-border-color: #dcd8c8;
+  --app-hover-bg-color: rgba(252, 250, 248, 1);
+  --app-accent-color: #817c5b;
+  --app-warning-color: #c6a870;
+  --app-danger-color: #b56f6f;
+  --app-info-bg-color: rgba(220, 216, 200, 0.3);
+
+  /* --- 2. 注入 Element Plus 覆蓋 --- */
+  --el-text-color-primary: var(--app-text-color);
+  --el-text-color-regular: var(--app-text-color);
+  --el-text-color-secondary: var(--app-text-color-secondary);
+  --el-text-color-placeholder: #a2a287;
+  --el-bg-color: var(--app-bg-color);
+  --el-bg-color-overlay: var(--app-hover-bg-color);
+  --el-fill-color-light: var(--app-hover-bg-color);
+  --el-fill-color-blank: transparent;
+  --el-card-bg-color: var(--app-bg-color);
+  --el-card-border-color: transparent;
+  --el-border-color: var(--app-hover-border-color);
+  --el-border-color-lighter: rgba(220, 216, 200, 0.5);
+  --el-border-color-light: var(--app-hover-border-color);
+  --el-color-primary: var(--app-accent-color);
+  --el-color-primary-light-9: var(--app-info-bg-color);
+  --el-color-warning: var(--app-warning-color);
+  --el-color-warning-light-9: var(--app-info-bg-color);
+  --el-color-info: var(--app-text-color-secondary);
+  --el-color-info-light-9: var(--app-info-bg-color);
+  --el-color-danger: var(--app-danger-color);
+  --el-color-danger-light-9: rgba(181, 111, 111, 0.1);
+
+  /* --- 3. 基礎樣式 --- */
   padding: 20px;
+  color: var(--app-text-color);
+  min-height: calc(100vh - 60px);
 }
 
 h2 {
   margin: 0;
   font-size: 1.2rem;
   font-weight: 600;
+  color: var(--app-text-color); /* 確保 h2 顏色正確 */
 }
 
 .el-card {
   height: 100%;
+  border: 1px solid var(--app-hover-border-color); /* 增加邊框 */
 }
 
 .skills-checkbox-group {

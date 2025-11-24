@@ -1,271 +1,299 @@
 <template>
-  <el-row justify="center">
-    <el-col :xs="24" :sm="20" :md="18" :lg="16">
-      <el-page-header @back="goBack" class="page-header">
-        <template #content>
-          <span class="text-large font-600 mr-3"> 案件詳情 </span>
-        </template>
-        <template #extra>
-          <div
-            class="page-header-extra"
-            v-if="isOwner && project && project.status === '招募中'"
-          >
-            <el-button type="primary" plain :icon="Edit" @click="goToEditPage">
-              編輯案件
-            </el-button>
-          </div>
-        </template>
-      </el-page-header>
+  <div class="project-detail-view">
+    <el-row justify="center">
+      <el-col :xs="24" :sm="20" :md="18" :lg="16">
+        <el-page-header @back="goBack" class="page-header">
+          <template #content>
+            <span class="text-large font-600 mr-3"> 案件詳情 </span>
+          </template>
+          <template #extra>
+            <div
+              class="page-header-extra"
+              v-if="isOwner && project && project.status === '招募中'"
+            >
+              <el-button
+                type="primary"
+                plain
+                :icon="Edit"
+                @click="goToEditPage"
+              >
+                編輯案件
+              </el-button>
+            </div>
+          </template>
+        </el-page-header>
 
-      <div v-if="isLoading">
-        <el-row :gutter="20">
-          <el-col :xs="24" :md="10" :lg="8">
-            <el-card shadow="never">
-              <el-skeleton :rows="5" animated />
+        <div v-if="isLoading">
+          <el-row :gutter="20">
+            <el-col :xs="24" :md="10" :lg="8">
+              <el-card shadow="never">
+                <el-skeleton :rows="5" animated />
+              </el-card>
+            </el-col>
+            <el-col :xs="24" :md="14" :lg="16">
+              <el-card shadow="never">
+                <el-skeleton :rows="8" animated />
+              </el-card>
+            </el-col>
+          </el-row>
+        </div>
+
+        <el-row :gutter="20" v-if="!isLoading && project">
+          <el-col :xs="24" :md="10" :lg="8" class="detail-col">
+            <el-card shadow="hover">
+              <template #header>
+                <div class="card-header">
+                  <span
+                    ><el-icon><User /></el-icon> 雇主資訊</span
+                  >
+                </div>
+              </template>
+              <div
+                v-if="project.employer.employer_profile"
+                class="employer-info"
+              >
+                <el-avatar
+                  :size="60"
+                  :src="project.employer.employer_profile.company_logo_url"
+                />
+                <h3 class="employer-name">
+                  {{ project.employer.employer_profile.company_name }}
+                </h3>
+                <p class="employer-email">{{ project.employer.email }}</p>
+                <el-divider />
+                <p class="employer-bio">
+                  {{
+                    project.employer.employer_profile.company_bio ||
+                    "尚未提供公司簡介"
+                  }}
+                </p>
+
+                <el-button
+                  type="primary"
+                  plain
+                  size="small"
+                  style="margin-top: 10px; width: 100%"
+                  @click="goToEmployerProfile(project.employer.user_id)"
+                >
+                  查看完整檔案與評價
+                </el-button>
+              </div>
+              <div v-else>
+                <el-descriptions :column="1" border>
+                  <el-descriptions-item label="雇主名稱">
+                    {{ project.employer.email }}
+                  </el-descriptions-item>
+                  <el-descriptions-item label="公司簡介">
+                    尚未建立 Profile
+                  </el-descriptions-item>
+                </el-descriptions>
+              </div>
             </el-card>
           </el-col>
-          <el-col :xs="24" :md="14" :lg="16">
-            <el-card shadow="never">
-              <el-skeleton :rows="8" animated />
+
+          <el-col :xs="24" :md="14" :lg="16" class="detail-col">
+            <el-card shadow="hover">
+              <!-- 修正: 將 header 移至 el-card 的直接子層，並加上 v-if -->
+              <template #header v-if="!isEditing">
+                <h2>{{ project.title }}</h2>
+              </template>
+
+              <!-- 修正: 這個 template v-if 只包裹 el-descriptions -->
+              <template v-if="!isEditing">
+                <el-descriptions :column="2" border>
+                  <el-descriptions-item label="預算">
+                    {{ project.budget_min || "N/A" }} ~
+                    {{ project.budget_max || "N/A" }}
+                  </el-descriptions-item>
+                  <el-descriptions-item label="案件狀態">
+                    <el-tag :type="statusTagType(project.status)">
+                      {{ project.status }}
+                    </el-tag>
+                  </el-descriptions-item>
+                  <el-descriptions-item label="地區">
+                    {{ project.location || "未指定" }}
+                  </el-descriptions-item>
+                  <el-descriptions-item label="工作型態">
+                    {{ project.work_type }}
+                  </el-descriptions-item>
+                  <el-descriptions-item label="需求人數">
+                    {{ project.required_people }} 人
+                  </el-descriptions-item>
+                  <el-descriptions-item label="提案截止">
+                    {{ formatDate(project.proposals_deadline) }}
+                  </el-descriptions-item>
+                  <el-descriptions-item label="案件完成日">
+                    {{ formatDate(project.completion_deadline) }}
+                  </el-descriptions-item>
+                  <el-descriptions-item label="所需技能" :span="2">
+                    <el-tag
+                      v-for="skill in project.skills"
+                      :key="skill.tag.tag_id"
+                      type="info"
+                      size="small"
+                      class="skill-tag"
+                    >
+                      {{ skill.tag.name }}
+                    </el-tag>
+                  </el-descriptions-item>
+                  <el-descriptions-item label="詳細需求內容" :span="2">
+                    <div class="description-content">
+                      {{ project.description }}
+                    </div>
+                  </el-descriptions-item>
+                </el-descriptions>
+              </template>
+
+              <template v-else>
+                <el-form
+                  :model="editForm"
+                  label-position="top"
+                  ref="editFormRef"
+                >
+                  <el-form-item label="案件標題" prop="title" required>
+                    <el-input v-model="editForm.title" />
+                  </el-form-item>
+
+                  <el-row :gutter="20">
+                    <el-col :span="12">
+                      <el-form-item label="最低預算" prop="budget_min">
+                        <el-input-number
+                          v-model="editForm.budget_min"
+                          :min="0"
+                          controls-position="right"
+                          class="w-100"
+                        />
+                      </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                      <el-form-item label="最高預算" prop="budget_max">
+                        <el-input-number
+                          v-model="editForm.budget_max"
+                          :min="editForm.budget_min || 0"
+                          controls-position="right"
+                          class="w-100"
+                        />
+                      </el-form-item>
+                    </el-col>
+                  </el-row>
+
+                  <el-row :gutter="20">
+                    <el-col :span="12">
+                      <el-form-item label="地區" prop="location">
+                        <el-input v-model="editForm.location" />
+                      </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                      <el-form-item label="工作型態" prop="work_type">
+                        <el-select v-model="editForm.work_type" class="w-100">
+                          <el-option label="遠端" value="遠端" />
+                          <el-option label="實體" value="實體" />
+                          <el-option label="混合" value="混合" />
+                        </el-select>
+                      </el-form-item>
+                    </el-col>
+                  </el-row>
+
+                  <el-form-item
+                    label="詳細需求內容"
+                    prop="description"
+                    required
+                  >
+                    <el-input
+                      type="textarea"
+                      v-model="editForm.description"
+                      rows="10"
+                    />
+                  </el-form-item>
+
+                  <el-form-item label="所需技能 (暫不可編輯)">
+                    <el-tag
+                      v-for="skill in project.skills"
+                      :key="skill.tag.tag_id"
+                      type="info"
+                      size="small"
+                      class="skill-tag"
+                    >
+                      {{ skill.tag.name }}
+                    </el-tag>
+                  </el-form-item>
+                </el-form>
+              </template>
+
+              <div
+                class="action-buttons"
+                v-if="authStore.userRole === '自由工作者'"
+              >
+                <el-divider />
+
+                <el-button
+                  v-if="canPropose"
+                  type="primary"
+                  @click="dialogVisible = true"
+                >
+                  <el-icon><Pointer /></el-icon> 我要提案
+                </el-button>
+
+                <el-tag v-if="hasProposed" type="success" size="large">
+                  <el-icon><Select /></el-icon> 你已提案
+                </el-tag>
+              </div>
             </el-card>
           </el-col>
         </el-row>
-      </div>
 
-      <el-row :gutter="20" v-if="!isLoading && project">
-        <el-col :xs="24" :md="10" :lg="8" class="detail-col">
-          <el-card shadow="hover">
-            <template #header>
-              <div class="card-header">
-                <span
-                  ><el-icon><User /></el-icon> 雇主資訊</span
-                >
-              </div>
-            </template>
-            <div v-if="project.employer.employer_profile" class="employer-info">
-              <el-avatar
-                :size="60"
-                :src="project.employer.employer_profile.company_logo_url"
+        <el-empty
+          description="案件不存在或載入失敗"
+          v-if="!isLoading && !project"
+        />
+
+        <el-dialog
+          v-model="dialogVisible"
+          title="提交提案"
+          width="500px"
+          :close-on-click-modal="false"
+        >
+          <el-form :model="proposalForm">
+            <el-form-item label="提案簡述" required>
+              <el-input
+                type="textarea"
+                v-model="proposalForm.briefDescription"
+                rows="5"
+                placeholder="請輸入您的提案簡述..."
               />
-              <h3 class="employer-name">
-                {{ project.employer.employer_profile.company_name }}
-              </h3>
-              <p class="employer-email">{{ project.employer.email }}</p>
-              <el-divider />
-              <p class="employer-bio">
-                {{
-                  project.employer.employer_profile.company_bio ||
-                  "尚未提供公司簡介"
-                }}
-              </p>
-            </div>
-            <div v-else>
-              <el-descriptions :column="1" border>
-                <el-descriptions-item label="雇主名稱">
-                  {{ project.employer.email }}
-                </el-descriptions-item>
-                <el-descriptions-item label="公司簡介">
-                  尚未建立 Profile
-                </el-descriptions-item>
-              </el-descriptions>
-            </div>
-          </el-card>
-        </el-col>
+            </el-form-item>
 
-        <el-col :xs="24" :md="14" :lg="16" class="detail-col">
-          <el-card shadow="hover">
-            <!-- 修正: 將 header 移至 el-card 的直接子層，並加上 v-if -->
-            <template #header v-if="!isEditing">
-              <h2>{{ project.title }}</h2>
-            </template>
-
-            <!-- 修正: 這個 template v-if 只包裹 el-descriptions -->
-            <template v-if="!isEditing">
-              <el-descriptions :column="2" border>
-                <el-descriptions-item label="預算">
-                  {{ project.budget_min || "N/A" }} ~
-                  {{ project.budget_max || "N/A" }}
-                </el-descriptions-item>
-                <el-descriptions-item label="案件狀態">
-                  <el-tag :type="statusTagType(project.status)">
-                    {{ project.status }}
-                  </el-tag>
-                </el-descriptions-item>
-                <el-descriptions-item label="地區">
-                  {{ project.location || "未指定" }}
-                </el-descriptions-item>
-                <el-descriptions-item label="工作型態">
-                  {{ project.work_type }}
-                </el-descriptions-item>
-                <el-descriptions-item label="需求人數">
-                  {{ project.required_people }} 人
-                </el-descriptions-item>
-                <el-descriptions-item label="提案截止">
-                  {{ formatDate(project.proposals_deadline) }}
-                </el-descriptions-item>
-                <el-descriptions-item label="案件完成日">
-                  {{ formatDate(project.completion_deadline) }}
-                </el-descriptions-item>
-                <el-descriptions-item label="所需技能" :span="2">
-                  <el-tag
-                    v-for="skill in project.skills"
-                    :key="skill.tag.tag_id"
-                    type="info"
-                    size="small"
-                    class="skill-tag"
-                  >
-                    {{ skill.tag.name }}
-                  </el-tag>
-                </el-descriptions-item>
-                <el-descriptions-item label="詳細需求內容" :span="2">
-                  <div class="description-content">
-                    {{ project.description }}
-                  </div>
-                </el-descriptions-item>
-              </el-descriptions>
-            </template>
-
-            <template v-else>
-              <el-form :model="editForm" label-position="top" ref="editFormRef">
-                <el-form-item label="案件標題" prop="title" required>
-                  <el-input v-model="editForm.title" />
-                </el-form-item>
-
-                <el-row :gutter="20">
-                  <el-col :span="12">
-                    <el-form-item label="最低預算" prop="budget_min">
-                      <el-input-number
-                        v-model="editForm.budget_min"
-                        :min="0"
-                        controls-position="right"
-                        class="w-100"
-                      />
-                    </el-form-item>
-                  </el-col>
-                  <el-col :span="12">
-                    <el-form-item label="最高預算" prop="budget_max">
-                      <el-input-number
-                        v-model="editForm.budget_max"
-                        :min="editForm.budget_min || 0"
-                        controls-position="right"
-                        class="w-100"
-                      />
-                    </el-form-item>
-                  </el-col>
-                </el-row>
-
-                <el-row :gutter="20">
-                  <el-col :span="12">
-                    <el-form-item label="地區" prop="location">
-                      <el-input v-model="editForm.location" />
-                    </el-form-item>
-                  </el-col>
-                  <el-col :span="12">
-                    <el-form-item label="工作型態" prop="work_type">
-                      <el-select v-model="editForm.work_type" class="w-100">
-                        <el-option label="遠端" value="遠端" />
-                        <el-option label="實體" value="實體" />
-                        <el-option label="混合" value="混合" />
-                      </el-select>
-                    </el-form-item>
-                  </el-col>
-                </el-row>
-
-                <el-form-item label="詳細需求內容" prop="description" required>
-                  <el-input
-                    type="textarea"
-                    v-model="editForm.description"
-                    rows="10"
-                  />
-                </el-form-item>
-
-                <el-form-item label="所需技能 (暫不可編輯)">
-                  <el-tag
-                    v-for="skill in project.skills"
-                    :key="skill.tag.tag_id"
-                    type="info"
-                    size="small"
-                    class="skill-tag"
-                  >
-                    {{ skill.tag.name }}
-                  </el-tag>
-                </el-form-item>
-              </el-form>
-            </template>
-
-            <div
-              class="action-buttons"
-              v-if="authStore.userRole === '自由工作者'"
-            >
-              <el-divider />
-
-              <el-button
-                v-if="canPropose"
-                type="primary"
-                @click="dialogVisible = true"
+            <el-form-item label="附件 (僅限 PDF)">
+              <el-upload
+                ref="uploadRef"
+                v-model:file-list="proposalForm.attachmentFile"
+                :limit="1"
+                :auto-upload="false"
+                accept="application/pdf"
               >
-                <el-icon><Pointer /></el-icon> 我要提案
+                <el-button type="default">選擇檔案</el-button>
+                <template #tip>
+                  <div class="el-upload__tip">僅支援 PDF 檔案。</div>
+                </template>
+              </el-upload>
+            </el-form-item>
+          </el-form>
+          <template #footer>
+            <span class="dialog-footer">
+              <el-button @click="dialogVisible = false">取消</el-button>
+              <el-button
+                type="primary"
+                @click="handleSubmitProposal"
+                :loading="isSubmitting"
+              >
+                確認提交
               </el-button>
-
-              <el-tag v-if="hasProposed" type="success" size="large">
-                <el-icon><Select /></el-icon> 你已提案
-              </el-tag>
-            </div>
-          </el-card>
-        </el-col>
-      </el-row>
-
-      <el-empty
-        description="案件不存在或載入失敗"
-        v-if="!isLoading && !project"
-      />
-
-      <el-dialog
-        v-model="dialogVisible"
-        title="提交提案"
-        width="500px"
-        :close-on-click-modal="false"
-      >
-        <el-form :model="proposalForm">
-          <el-form-item label="提案簡述" required>
-            <el-input
-              type="textarea"
-              v-model="proposalForm.briefDescription"
-              rows="5"
-              placeholder="請輸入您的提案簡述..."
-            />
-          </el-form-item>
-
-          <el-form-item label="附件 (僅限 PDF)">
-            <el-upload
-              ref="uploadRef"
-              v-model:file-list="proposalForm.attachmentFile"
-              :limit="1"
-              :auto-upload="false"
-              accept="application/pdf"
-            >
-              <el-button type="default">選擇檔案</el-button>
-              <template #tip>
-                <div class="el-upload__tip">僅支援 PDF 檔案。</div>
-              </template>
-            </el-upload>
-          </el-form-item>
-        </el-form>
-        <template #footer>
-          <span class="dialog-footer">
-            <el-button @click="dialogVisible = false">取消</el-button>
-            <el-button
-              type="primary"
-              @click="handleSubmitProposal"
-              :loading="isSubmitting"
-            >
-              確認提交
-            </el-button>
-          </span>
-        </template>
-      </el-dialog>
-    </el-col>
-  </el-row>
+            </span>
+          </template>
+        </el-dialog>
+      </el-col>
+    </el-row>
+  </div>
 </template>
 
 <script setup>
@@ -328,6 +356,11 @@ onMounted(async () => {
 // (新增) 需求二：跳轉到編輯頁面
 const goToEditPage = () => {
   router.push(`/projects/${projectId}/edit`);
+};
+
+// (新增) 跳轉到雇主檔案頁面
+const goToEmployerProfile = (userId) => {
+  router.push(`/employers/${userId}`);
 };
 
 // M6 檢查是否已提案 (不變)
@@ -405,6 +438,52 @@ const statusTagType = (status) => {
 </script>
 
 <style lang="scss" scoped>
+.project-detail-view {
+  // --- 1. Define New Palette ---
+  --app-bg-color: rgba(250, 247, 239, 0.973); // Soft beige
+  --app-text-color: #616130;
+  --app-text-color-secondary: #8a8a69;
+  --app-hover-border-color: #dcd8c8;
+  --app-hover-bg-color: rgba(252, 250, 248, 1); // More opaque
+  --app-accent-color: #817c5b; // Muted olive-brown
+  --app-warning-color: #c6a870; // Muted gold
+  --app-danger-color: #b56f6f; // Brownish-red
+  --app-info-bg-color: rgba(220, 216, 200, 0.3); // Muted beige bg for tags
+
+  // --- 2. Override Element Plus Vars ---
+  // This is the cleanest way to override the palette
+  // It will affect all children Element Plus components within this view
+  --el-text-color-primary: var(--app-text-color);
+  --el-text-color-regular: var(--app-text-color);
+  --el-text-color-secondary: var(--app-text-color-secondary);
+  --el-text-color-placeholder: #a2a287;
+
+  --el-bg-color: var(--app-bg-color);
+  --el-bg-color-overlay: var(--app-hover-bg-color);
+  --el-fill-color-light: var(--app-hover-bg-color);
+  --el-fill-color-blank: transparent; // Make backgrounds transparent
+
+  --el-card-bg-color: var(--app-bg-color);
+  --el-card-border-color: transparent; // No borders on cards by default
+
+  --el-border-color: var(--app-hover-border-color);
+  --el-border-color-lighter: rgba(220, 216, 200, 0.5);
+  --el-border-color-light: var(--app-hover-border-color);
+
+  --el-color-primary: var(--app-accent-color);
+  --el-color-primary-light-9: var(--app-info-bg-color);
+
+  --el-color-warning: var(--app-warning-color);
+  --el-color-warning-light-9: var(--app-info-bg-color);
+
+  --el-color-info: var(--app-text-color-secondary);
+  --el-color-info-light-9: var(--app-info-bg-color);
+
+  --el-color-danger: var(--app-danger-color);
+  --el-color-danger-light-9: rgba(181, 111, 111, 0.1);
+  padding: 20px;
+  background-color: #f5f7fa;
+}
 .page-header {
   margin-bottom: 20px;
   background-color: #fff;

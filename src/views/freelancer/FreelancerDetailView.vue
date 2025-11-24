@@ -14,20 +14,76 @@
       <el-card v-if="!isLoading && profile" shadow="hover">
         <template #header>
           <div class="profile-header">
-            <el-avatar
-              :size="60"
-              :src="profile.avatar_url"
-              :icon="UserFilled"
-            />
-            <div class="header-info">
-              <h2>{{ profile.full_name || "未命名" }}</h2>
-              <el-rate
-                :model-value="profile.reputation_score"
-                disabled
-                show-score
-                text-color="#ff9900"
-                score-template="{value} 分"
+            <div class="header-left">
+              <el-avatar
+                :size="80"
+                :src="resolveAvatarUrl(profile.avatar_url)"
+                :icon="UserFilled"
               />
+              <div class="header-info">
+                <h2 class="profile-name">
+                  {{ profile.full_name || "未命名" }}
+                </h2>
+
+                <div class="total-rating">
+                  <el-rate
+                    :model-value="profile.reputation_score"
+                    disabled
+                    show-score
+                    text-color="#ff9900"
+                    score-template="{value} 分"
+                  />
+                </div>
+
+                <div class="ratings-breakdown">
+                  <div class="rating-item">
+                    <span class="rating-label">溝通協調</span>
+                    <el-rate
+                      :model-value="profile.avg_communication || 0"
+                      disabled
+                      text-color="#ff9900"
+                      size="small"
+                    />
+                  </div>
+                  <div class="rating-item">
+                    <span class="rating-label">專業技術</span>
+                    <el-rate
+                      :model-value="profile.avg_professionalism || 0"
+                      disabled
+                      text-color="#ff9900"
+                      size="small"
+                    />
+                  </div>
+                  <div class="rating-item">
+                    <span class="rating-label">準時交付</span>
+                    <el-rate
+                      :model-value="profile.avg_punctuality || 0"
+                      disabled
+                      text-color="#ff9900"
+                      size="small"
+                    />
+                  </div>
+                  <div class="rating-item">
+                    <span class="rating-label">成果品質</span>
+                    <el-rate
+                      :model-value="profile.avg_quality || 0"
+                      disabled
+                      text-color="#ff9900"
+                      size="small"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="header-action" v-if="canSayHi">
+              <el-button
+                type="primary"
+                :icon="ChatDotRound"
+                @click="handleSayHi"
+              >
+                Say Hi
+              </el-button>
             </div>
           </div>
         </template>
@@ -79,22 +135,83 @@
         v-if="!isLoading && !profile"
       />
     </el-col>
+
+    <el-dialog
+      v-model="dialogVisible"
+      title="發起對話邀請"
+      width="400px"
+      align-center
+    >
+      <p>請選擇您要洽談的案件 (僅列出招募中)：</p>
+      <el-select
+        v-model="selectedProjectId"
+        placeholder="請選擇案件"
+        style="width: 100%; margin-top: 10px"
+      >
+        <el-option
+          v-for="job in myActiveJobs"
+          :key="job.project_id"
+          :label="job.title"
+          :value="job.project_id"
+        />
+      </el-select>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="dialogVisible = false">取消</el-button>
+          <el-button
+            type="primary"
+            @click="confirmSayHi"
+            :loading="isProcessing"
+            :disabled="!selectedProjectId"
+          >
+            開始聊天
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
   </el-row>
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import { getFreelancerProfileByUserId } from "@/api/profile.js";
-import { UserFilled } from "@element-plus/icons-vue";
+import { UserFilled, ChatDotRound } from "@element-plus/icons-vue";
+
+import { useAuthStore } from "@/store/authStore.js";
+import { getMyProjects } from "@/api/project.js";
+import { createChatRoom } from "@/api/message.js";
+// (新增) 匯入 Base URL
+import { API_BASE_URL } from "@/config/env.js";
 
 const route = useRoute();
 const router = useRouter();
+const authStore = useAuthStore();
+
 const isLoading = ref(true);
 const profile = ref(null);
-const userId = route.params.userId; // 從路由獲取 ID
+const userId = route.params.userId;
 const activeTab = ref("about");
+
+const dialogVisible = ref(false);
+const myActiveJobs = ref([]);
+const selectedProjectId = ref("");
+const isProcessing = ref(false);
+
+const canSayHi = computed(() => {
+  if (!authStore.isAuthenticated || !authStore.user) return false;
+  if (authStore.user.role !== "雇主") return false;
+  if (authStore.user.user_id === userId) return false;
+  return true;
+});
+
+// (新增) 解析圖片 URL
+const resolveAvatarUrl = (url) => {
+  if (!url) return null;
+  if (url.startsWith("http")) return url;
+  return `${API_BASE_URL}${url}`;
+};
 
 onMounted(async () => {
   if (!userId) {
@@ -114,6 +231,48 @@ onMounted(async () => {
 const goBack = () => {
   router.back();
 };
+
+const handleSayHi = async () => {
+  if (!authStore.isAuthenticated) {
+    ElMessage.warning("請先登入");
+    router.push("/login");
+    return;
+  }
+
+  try {
+    const res = await getMyProjects();
+    const allJobs = res.data;
+    myActiveJobs.value = allJobs.filter((job) => job.status === "招募中");
+
+    if (myActiveJobs.value.length === 0) {
+      ElMessage.warning("您目前沒有招募中的案件，請先刊登需求才能發起對話。");
+      return;
+    }
+
+    selectedProjectId.value = "";
+    dialogVisible.value = true;
+  } catch (error) {
+    console.error(error);
+    ElMessage.error("無法讀取您的案件列表");
+  }
+};
+
+const confirmSayHi = async () => {
+  if (!selectedProjectId.value) return;
+
+  isProcessing.value = true;
+  try {
+    await createChatRoom(selectedProjectId.value, userId);
+    ElMessage.success("聊天室建立成功！");
+    dialogVisible.value = false;
+    router.push("/chat");
+  } catch (error) {
+    const errorMsg = error.response?.data?.detail || "建立聊天室失敗";
+    ElMessage.error(errorMsg);
+  } finally {
+    isProcessing.value = false;
+  }
+};
 </script>
 
 <style lang="scss" scoped>
@@ -123,16 +282,51 @@ const goBack = () => {
   padding: 10px 20px;
   border-radius: 4px;
 }
+
 .profile-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  justify-content: space-between;
+
+  .header-left {
+    display: flex;
+    align-items: flex-start;
+  }
+
   .header-info {
-    margin-left: 15px;
-    h2 {
+    margin-left: 20px;
+    .profile-name {
       margin: 0 0 5px 0;
+      font-size: 24px;
+    }
+    .total-rating {
+      margin-bottom: 15px;
     }
   }
 }
+
+.ratings-breakdown {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px 20px;
+  margin-top: 10px;
+  background-color: var(--el-fill-color-lighter);
+  padding: 10px;
+  border-radius: 4px;
+}
+
+.rating-item {
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+
+  .rating-label {
+    color: var(--el-text-color-secondary);
+    margin-right: 8px;
+    min-width: 60px;
+  }
+}
+
 .skill-tag {
   margin: 5px;
 }

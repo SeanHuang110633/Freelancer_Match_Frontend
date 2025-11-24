@@ -85,7 +85,7 @@
               <el-button
                 v-if="project.status === '招募中'"
                 text
-                type="primary"
+                type="warning"
                 size="small"
                 @click.stop.prevent="goToProposalManagement(project.project_id)"
               >

@@ -320,8 +320,10 @@ const isProfileLoading = ref(false);
  */
 const getFullAvatarUrl = (relativeUrl) => {
   if (!relativeUrl) {
+    console.log("No avatar URL provided.");
     return null; // 回傳 null，el-avatar 會顯示 icon
   }
+  console.log("Original avatar URL from DB:", relativeUrl);
 
   // (!! 📍 PRODUCTION / GCP DEPLOYMENT NOTE 📍 !!)
   // 這裡的邏輯是關鍵。

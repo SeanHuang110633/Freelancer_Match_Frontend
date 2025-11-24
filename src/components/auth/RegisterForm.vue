@@ -97,7 +97,12 @@ const handleRegister = async () => {
   successMessage.value = "";
 
   try {
-    const response = await apiRegister(form.value);
+    // map role value (UI uses English) to Chinese for backend
+    const payload = {
+      ...form.value,
+      role: form.value.role === "Freelancer" ? "自由工作者" : "雇主",
+    };
+    const response = await apiRegister(payload);
     // 成功訊息改為英文
     successMessage.value = `Account ${response.data.email} registered successfully! Please switch to login.`;
   } catch (error) {
