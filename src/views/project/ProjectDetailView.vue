@@ -93,12 +93,10 @@
 
           <el-col :xs="24" :md="14" :lg="16" class="detail-col">
             <el-card shadow="hover">
-              <!-- 修正: 將 header 移至 el-card 的直接子層，並加上 v-if -->
               <template #header v-if="!isEditing">
                 <h2>{{ project.title }}</h2>
               </template>
 
-              <!-- 修正: 這個 template v-if 只包裹 el-descriptions -->
               <template v-if="!isEditing">
                 <el-descriptions :column="2" border>
                   <el-descriptions-item label="預算">
@@ -552,6 +550,35 @@ const statusTagType = (status) => {
   align-items: center;
   .el-icon {
     margin-right: 4px;
+  }
+}
+
+/* --- 按鈕樣式覆蓋 --- */
+
+/* 針對 Plain 按鈕 (如：查看完整檔案與評價) */
+:deep(.el-button--primary.is-plain) {
+  color: #a79c7fb0;
+  border-color: #a79c7fb0;
+  background-color: transparent; /* 預設透明或白色 */
+
+  &:hover,
+  &:focus {
+    background-color: #a79c7fb0;
+    border-color: #a79c7fb0;
+    color: #fff;
+  }
+}
+
+/* 針對實心主按鈕 (如：我要提案) */
+:deep(.el-button--primary:not(.is-plain)) {
+  background-color: #a79c7fb0;
+  border-color: #a79c7fb0;
+  color: #fff;
+
+  &:hover,
+  &:focus {
+    background-color: #7d7561b0;
+    border-color: #7d7561b0;
   }
 }
 </style>

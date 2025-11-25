@@ -33,7 +33,8 @@
                     <el-rate
                       :model-value="profile.avg_communication || 0"
                       disabled
-                      text-color="#ff9900"
+                      text-color="#a79c7fb0"
+                      void-color="#C6D1DE"
                       size="small"
                     />
                   </div>
@@ -42,7 +43,8 @@
                     <el-rate
                       :model-value="profile.avg_quality || 0"
                       disabled
-                      text-color="#ff9900"
+                      text-color="#a79c7fb0"
+                      void-color="#C6D1DE"
                       size="small"
                     />
                   </div>
@@ -51,7 +53,8 @@
                     <el-rate
                       :model-value="profile.avg_compensation || 0"
                       disabled
-                      text-color="#ff9900"
+                      text-color="#a79c7fb0"
+                      void-color="#C6D1DE"
                       size="small"
                     />
                   </div>
@@ -60,7 +63,8 @@
                     <el-rate
                       :model-value="profile.avg_process || 0"
                       disabled
-                      text-color="#ff9900"
+                      text-color="#a79c7fb0"
+                      void-color="#C6D1DE"
                       size="small"
                     />
                   </div>
@@ -121,7 +125,6 @@ import { useRoute, useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import { getEmployerProfileByUserId } from "@/api/profile.js";
 import { OfficeBuilding } from "@element-plus/icons-vue";
-// (新增) 匯入 Base URL
 import { API_BASE_URL } from "@/config/env.js";
 
 const route = useRoute();
@@ -132,7 +135,6 @@ const profile = ref(null);
 const userId = route.params.userId;
 const activeTab = ref("about");
 
-// (新增) 解析圖片 URL
 const resolveLogoUrl = (url) => {
   if (!url) return null;
   if (url.startsWith("http")) return url;
@@ -215,5 +217,27 @@ const goBack = () => {
 
 .description-content {
   white-space: pre-wrap;
+}
+
+/* --- 主題樣式覆蓋 (Theme Overrides) --- */
+
+/* Rate (星星顏色) */
+:deep(.el-rate__icon.is-active) {
+  color: #a79c7fb0 !important; /* 覆蓋星星顏色 */
+}
+
+/* Link */
+:deep(.el-link.el-link--default:hover) {
+  color: #a79c7fb0;
+}
+
+/* Tabs */
+:deep(.el-tabs__item.is-active) {
+  color: #616130;
+  font-weight: bold;
+}
+
+:deep(.el-tabs__item:hover) {
+  color: #a79c7fb0;
 }
 </style>

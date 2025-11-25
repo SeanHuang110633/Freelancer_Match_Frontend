@@ -30,6 +30,21 @@ export const updateMyProfile = (data) => {
   return http.put("/profiles/me", data);
 };
 
+// 上傳頭貼 API
+/**
+ * 上傳頭貼或公司 Logo
+ * @param {File} file - 圖片檔案物件
+ * @returns {Promise} - 回傳 { url: "..." }
+ */
+export const uploadAvatar = (file) => {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  // (重要) Axios 遇到 FormData 會自動設定 'Content-Type': 'multipart/form-data'
+  // 後端 router 預期接收 "file" 欄位
+  return http.post("/profiles/avatar", formData);
+};
+
 /**
  * (新增) 獲取指定 User ID 的工作者 Profile
  * @param {string} userId

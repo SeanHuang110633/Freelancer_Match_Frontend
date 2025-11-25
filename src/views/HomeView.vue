@@ -1,157 +1,203 @@
 <template>
   <div class="home-view">
+    <el-dialog
+      v-model="guideDialog.visible"
+      :title="guideDialog.title"
+      width="30%"
+      center
+      align-center
+    >
+      <span>{{ guideDialog.message }}</span>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="guideDialog.visible = false">Later</el-button>
+          <el-button type="primary" @click="guideDialog.action">
+            {{ guideDialog.buttonText }}
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
+
     <el-row :gutter="20">
       <el-col :xs="24" :sm="24" :md="16">
         <div v-if="authStore.userRole === '自由工作者'">
           <h2>Recommended Jobs</h2>
-          <el-card
-            v-for="reco in recommendedJobs"
-            :key="reco.project.project_id"
-            class="recommendation-card job-card"
-            shadow="hover"
-            @click="goToProjectDetail(reco.project.project_id)"
-          >
-            <template #header>
-              <div class="card-header">
-                <span>{{ reco.project.title }}</span>
-                <el-tag type="warning" effect="light" round>
-                  Score: {{ reco.recommendation_score }}
-                </el-tag>
+
+          <div v-if="recommendedJobs.length > 0">
+            <el-card
+              v-for="reco in recommendedJobs"
+              :key="reco.project.project_id"
+              class="recommendation-card job-card"
+              shadow="hover"
+              @click="goToProjectDetail(reco.project.project_id)"
+            >
+              <template #header>
+                <div class="card-header">
+                  <span>{{ reco.project.title }}</span>
+                  <el-tag type="warning" effect="light" round>
+                    Score: {{ reco.recommendation_score }}
+                  </el-tag>
+                </div>
+              </template>
+              <el-row :gutter="10" class="meta-info">
+                <el-col :span="12">
+                  <el-icon><Money /></el-icon>
+                  {{ reco.project.budget_min || "N/A" }} ~
+                  {{ reco.project.budget_max || "N/A" }}
+                </el-col>
+                <el-col :span="12">
+                  <el-icon><Location /></el-icon>
+                  {{ reco.project.location || "Not specified" }} /
+                  {{ reco.project.work_type }}
+                </el-col>
+              </el-row>
+              <div class="skills-info">
+                <el-tag
+                  v-for="skill in reco.project.skills"
+                  :key="skill.tag.tag_id"
+                  type="info"
+                  size="small"
+                  class="skill-tag"
+                  >{{ skill.tag.name }}</el-tag
+                >
               </div>
-            </template>
-            <el-row :gutter="10" class="meta-info">
-              <el-col :span="12">
-                <el-icon><Money /></el-icon>
-                {{ reco.project.budget_min || "N/A" }} ~
-                {{ reco.project.budget_max || "N/A" }}
-              </el-col>
-              <el-col :span="12">
-                <el-icon><Location /></el-icon>
-                {{ reco.project.location || "Not specified" }} /
-                {{ reco.project.work_type }}
-              </el-col>
-            </el-row>
-            <div class="skills-info">
-              <el-tag
-                v-for="skill in reco.project.skills"
-                :key="skill.tag.tag_id"
-                type="info"
-                size="small"
-                class="skill-tag"
-                >{{ skill.tag.name }}</el-tag
-              >
-            </div>
-          </el-card>
-        </div>
-        <div
-          v-if="authStore.userRole === '自由工作者'"
-          style="
-            display: flex;
-            gap: 8px;
-            align-items: center;
-            margin-bottom: 20px;
-          "
-        >
-          <el-button
-            size="small"
-            @click="loadJobPage(Math.max(0, jobOffset - jobLimit))"
-            :disabled="jobOffset === 0 || isRecoLoading"
-            :loading="isRecoLoading"
-            >Prev</el-button
+            </el-card>
+          </div>
+
+          <el-empty v-else :description="emptyStateDescription">
+            <el-button v-if="!profileLoaded" type="primary" @click="goToProfile"
+              >Create Profile</el-button
+            >
+            <el-button
+              v-else-if="isFreelancerWithoutSkills"
+              type="primary"
+              @click="goToProfile"
+              >Add Skills</el-button
+            >
+          </el-empty>
+
+          <div
+            v-if="recommendedJobs.length > 0"
+            style="
+              display: flex;
+              gap: 8px;
+              align-items: center;
+              margin-bottom: 20px;
+            "
           >
-          <span
-            >Page: {{ Math.floor(jobOffset / jobLimit) + 1 }} /
-            {{ Math.max(1, Math.ceil(jobTotal / jobLimit)) }}</span
-          >
-          <el-button
-            size="small"
-            @click="loadJobPage(jobOffset + jobLimit)"
-            :disabled="jobOffset + jobLimit >= jobTotal || isRecoLoading"
-            :loading="isRecoLoading"
-            >Next</el-button
-          >
+            <el-button
+              size="small"
+              @click="loadJobPage(Math.max(0, jobOffset - jobLimit))"
+              :disabled="jobOffset === 0 || isRecoLoading"
+              >Prev</el-button
+            >
+            <span
+              >Page: {{ Math.floor(jobOffset / jobLimit) + 1 }} /
+              {{ Math.max(1, Math.ceil(jobTotal / jobLimit)) }}</span
+            >
+            <el-button
+              size="small"
+              @click="loadJobPage(jobOffset + jobLimit)"
+              :disabled="jobOffset + jobLimit >= jobTotal || isRecoLoading"
+              >Next</el-button
+            >
+          </div>
         </div>
 
         <div v-if="authStore.userRole === '雇主'">
           <h2>Recommended Freelancers</h2>
-          <el-card
-            v-for="reco in recommendedFreelancers"
-            :key="reco.profile.profile_id"
-            class="recommendation-card freelancer-card"
-            shadow="hover"
-            @click="goToFreelancerDetail(reco.profile.user_id)"
-          >
-            <div class="freelancer-header">
-              <el-avatar
-                :size="85"
-                :src="getFullAvatarUrl(reco.profile.avatar_url)"
-                :icon="UserFilled"
-              />
-              <div class="header-info">
-                <strong>{{ reco.profile.full_name || "Untitled" }}</strong>
-                <p class="bio">{{ reco.profile.bio || "No bio provided" }}</p>
-                <div>
-                  <el-rate
-                    :model-value="reco.profile.reputation_score"
-                    disabled
-                    size="small"
-                    text-color="#ff9900"
-                  />
-                  <span>({{ reco.profile.reputation_score }} points)</span>
+
+          <div v-if="recommendedFreelancers.length > 0">
+            <el-card
+              v-for="reco in recommendedFreelancers"
+              :key="reco.profile.profile_id"
+              class="recommendation-card freelancer-card"
+              shadow="hover"
+              @click="goToFreelancerDetail(reco.profile.user_id)"
+            >
+              <div class="freelancer-header">
+                <el-avatar
+                  :size="85"
+                  :src="getFullAvatarUrl(reco.profile.avatar_url)"
+                  :icon="UserFilled"
+                />
+                <div class="header-info">
+                  <strong>{{ reco.profile.full_name || "Untitled" }}</strong>
+                  <p class="bio">{{ reco.profile.bio || "No bio provided" }}</p>
+                  <div>
+                    <el-rate
+                      :model-value="reco.profile.reputation_score"
+                      disabled
+                      size="small"
+                      text-color="#ff9900"
+                    />
+                    <span>({{ reco.profile.reputation_score }} points)</span>
+                  </div>
                 </div>
+                <el-tag type="warning" effect="light" round class="score-tag">
+                  Score: {{ reco.recommendation_score }}
+                </el-tag>
               </div>
-              <el-tag type="warning" effect="light" round class="score-tag">
-                Score: {{ reco.recommendation_score }}
-              </el-tag>
-            </div>
-            <div class="skills-info">
-              <el-tag
-                v-for="skill in reco.profile.skills"
-                :key="skill.tag.tag_id"
-                type="info"
-                size="small"
-                class="skill-tag"
-                >{{ skill.tag.name }}</el-tag
-              >
-            </div>
-          </el-card>
-        </div>
-        <div
-          v-if="authStore.userRole === '雇主'"
-          style="
-            display: flex;
-            gap: 8px;
-            align-items: center;
-            margin-bottom: 20px;
-          "
-        >
-          <el-button
-            size="small"
-            @click="
-              loadFreelancerPage(
-                Math.max(0, freelancerOffset - freelancerLimit)
-              )
+              <div class="skills-info">
+                <el-tag
+                  v-for="skill in reco.profile.skills"
+                  :key="skill.tag.tag_id"
+                  type="info"
+                  size="small"
+                  class="skill-tag"
+                  >{{ skill.tag.name }}</el-tag
+                >
+              </div>
+            </el-card>
+          </div>
+
+          <el-empty v-else :description="emptyStateDescription">
+            <el-button v-if="!profileLoaded" type="primary" @click="goToProfile"
+              >Create Profile</el-button
+            >
+            <el-button
+              v-else-if="isEmployerWithoutJobs"
+              type="primary"
+              @click="goToPostJob"
+              >Post a Job</el-button
+            >
+          </el-empty>
+
+          <div
+            v-if="recommendedFreelancers.length > 0"
+            style="
+              display: flex;
+              gap: 8px;
+              align-items: center;
+              margin-bottom: 20px;
             "
-            :disabled="freelancerOffset === 0 || isFreelancerRecoLoading"
-            :loading="isFreelancerRecoLoading"
-            >Prev</el-button
           >
-          <span
-            >Page: {{ Math.floor(freelancerOffset / freelancerLimit) + 1 }} /
-            {{
-              Math.max(1, Math.ceil(freelancerTotal / freelancerLimit))
-            }}</span
-          >
-          <el-button
-            size="small"
-            @click="loadFreelancerPage(freelancerOffset + freelancerLimit)"
-            :disabled="
-              freelancerOffset + freelancerLimit >= freelancerTotal ||
-              isFreelancerRecoLoading
-            "
-            :loading="isFreelancerRecoLoading"
-            >Next</el-button
-          >
+            <el-button
+              size="small"
+              @click="
+                loadFreelancerPage(
+                  Math.max(0, freelancerOffset - freelancerLimit)
+                )
+              "
+              :disabled="freelancerOffset === 0 || isFreelancerRecoLoading"
+              >Prev</el-button
+            >
+            <span
+              >Page: {{ Math.floor(freelancerOffset / freelancerLimit) + 1 }} /
+              {{
+                Math.max(1, Math.ceil(freelancerTotal / freelancerLimit))
+              }}</span
+            >
+            <el-button
+              size="small"
+              @click="loadFreelancerPage(freelancerOffset + freelancerLimit)"
+              :disabled="
+                freelancerOffset + freelancerLimit >= freelancerTotal ||
+                isFreelancerRecoLoading
+              "
+              >Next</el-button
+            >
+          </div>
         </div>
       </el-col>
 
@@ -164,50 +210,31 @@
               >
             </div>
           </template>
-          <el-alert
-            v-if="!profileLoaded && !isProfileLoading"
-            title="Complete Your Profile for Accurate Recommendations"
-            type="warning"
-            description="Please go to the 'My Profile' page to create your profile."
-            show-icon
-            :closable="false"
+
+          <div
+            v-if="notificationStore.unreadNotifications.length > 0"
+            class="notification-list"
           >
-            <el-button size="small" type="warning" plain @click="goToProfile">
-              Go Now
-            </el-button>
-          </el-alert>
-          <div v-if="profileLoaded || isProfileLoading">
             <div
-              v-if="notificationStore.unreadNotifications.length > 0"
-              class="notification-list"
+              v-for="notification in notificationStore.unreadNotifications.slice(
+                0,
+                5
+              )"
+              :key="notification.notification_id"
+              class="notification-item"
+              @click="notificationStore.handleNotificationClick(notification)"
             >
-              <div
-                v-for="notification in notificationStore.unreadNotifications.slice(
-                  0,
-                  5
-                )"
-                :key="notification.notification_id"
-                class="notification-item"
-                @click="notificationStore.handleNotificationClick(notification)"
-              >
-                <el-icon class="notification-icon"><InfoFilled /></el-icon>
-                <div class="notification-content">
-                  <span class="notification-title">{{
-                    notification.title
-                  }}</span>
-                </div>
+              <el-icon class="notification-icon"><InfoFilled /></el-icon>
+              <div class="notification-content">
+                <span class="notification-title">{{ notification.title }}</span>
               </div>
             </div>
-
-            <div
-              v-else-if="profileLoaded && !isProfileLoading"
-              class="notification-empty"
-            >
-              <el-empty
-                description="No new important reminders"
-                :image-size="60"
-              />
-            </div>
+          </div>
+          <div v-else class="notification-empty">
+            <el-empty
+              description="No new important reminders"
+              :image-size="60"
+            />
           </div>
         </el-card>
 
@@ -261,13 +288,14 @@
 <script setup>
 import { useAuthStore } from "@/store/authStore.js";
 import { useRouter } from "vue-router";
-import { ref, onMounted, computed } from "vue";
-import { ElMessage } from "element-plus"; // (Updated)
+import { ref, onMounted, reactive, computed } from "vue";
+import { ElMessage } from "element-plus";
 import {
   getJobRecommendations,
   getFreelancerRecommendations,
 } from "@/api/recommendation.js";
 import { getMyProfile } from "@/api/profile.js";
+import { getMyProjects } from "@/api/project.js"; // (新增) 引入專案 API
 import {
   UserFilled,
   Money,
@@ -281,18 +309,13 @@ import {
   Tickets,
 } from "@element-plus/icons-vue";
 import { useNotificationStore } from "@/store/notificationStore.js";
-
-// (!! 📍 PRODUCTION / GCP DEPLOYMENT NOTE 📍 !!)
-// 這裡是匯入您本地的後端 URL (例如 "http://127.0.0.1:8000")。
-// 當您部署到 GCP 時，您前端的 production build (例如 /config/env.production.js)
-// 必須將此變數修改為您在 GCP App Engine 或 Cloud Run 上的 "後端 API 服務 URL"。
 import { API_BASE_URL } from "@/config/env.js";
 
 const authStore = useAuthStore();
 const router = useRouter();
 const notificationStore = useNotificationStore();
 
-// Recommendation State (Freelancer)
+// Recommendation State
 const recommendedJobs = ref([]);
 const isRecoLoading = ref(false);
 const jobLimit = ref(10);
@@ -300,7 +323,6 @@ const jobOffset = ref(0);
 const jobHasMore = ref(false);
 const jobTotal = ref(0);
 
-// Recommendation State (Employer)
 const recommendedFreelancers = ref([]);
 const isFreelancerRecoLoading = ref(false);
 const freelancerLimit = ref(10);
@@ -308,39 +330,43 @@ const freelancerOffset = ref(0);
 const freelancerHasMore = ref(false);
 const freelancerTotal = ref(0);
 
-// Profile State
+// Profile & Status State
 const profileLoaded = ref(false);
 const isProfileLoading = ref(false);
+const isFreelancerWithoutSkills = ref(false); // (新增) 工作者無技能
+const isEmployerWithoutJobs = ref(false); // (新增) 雇主無案件
 
-// (!! 修正新增 !!)
-/**
- * 組合完整的頭貼 URL
- * @param {string | null} relativeUrl - 資料庫中儲存的 URL (可能是相對路徑)
- * @returns {string | null} - 完整的、可顯示的 URL
- */
-const getFullAvatarUrl = (relativeUrl) => {
-  if (!relativeUrl) {
-    console.log("No avatar URL provided.");
-    return null; // 回傳 null，el-avatar 會顯示 icon
+// (新增) 引導彈窗狀態
+const guideDialog = reactive({
+  visible: false,
+  title: "",
+  message: "",
+  buttonText: "",
+  action: () => {},
+});
+
+// (新增) 動態計算 Empty State 的提示文字
+// 這樣即使彈窗被關閉 (guideDialog.visible = false)，使用者仍能看到正確的提示
+const emptyStateDescription = computed(() => {
+  if (!profileLoaded.value) {
+    return "Please create your profile to verify your identity.";
   }
-  console.log("Original avatar URL from DB:", relativeUrl);
+  if (authStore.userRole === "自由工作者" && isFreelancerWithoutSkills.value) {
+    return "Add skill tags to get personalized job recommendations.";
+  }
+  if (authStore.userRole === "雇主" && isEmployerWithoutJobs.value) {
+    return "Post a job to start finding suitable freelancers.";
+  }
+  // 如果以上條件都滿足，但真的沒有匹配資料
+  return "No matching results found yet.";
+});
 
-  // (!! 📍 PRODUCTION / GCP DEPLOYMENT NOTE 📍 !!)
-  // 這裡的邏輯是關鍵。
-  //
-  // 情況 1 (推薦的上線方式):
-  // 您的資料庫儲存完整的 GCP Cloud Storage URL (例如 "https://storage.googleapis.com/...")。
-  // 這個 startsWith('http') 檢查 會捕捉到它，並直接使用該 URL。
-  //
-  // 情況 2 (本地開發方式):
-  // 您的資料庫儲存相對路徑 (例如 "/static/avatar/avatar_1.webp")。
-  // 這段 'else' 邏輯會將它與 API_BASE_URL (http://127.0.0.1:8000) 組合。
-  //
+const getFullAvatarUrl = (relativeUrl) => {
+  if (!relativeUrl) return null;
   if (relativeUrl.startsWith("http")) {
+    console.log("HomePage : Using full URL:", relativeUrl);
     return relativeUrl;
   }
-
-  // 組合後端 Base URL 和我們存的相對路徑
   return `${API_BASE_URL}${relativeUrl}`;
 };
 
@@ -353,59 +379,100 @@ const goToFreelancerDetail = (userId) => router.push(`/freelancers/${userId}`);
 const goToMyJobs = () => router.push("/my-jobs");
 const goToMyContracts = () => router.push("/my-contracts");
 
-// Logout
 const handleLogout = () => {
   authStore.logout();
   router.push("/login");
 };
 
-// Load Data
-onMounted(async () => {
-  // 1. Check Profile Status
+// (新增) 核心檢查邏輯
+const checkUserReadiness = async () => {
   isProfileLoading.value = true;
+  let profile = null;
+
+  // 1. 檢查 Profile 是否存在
   try {
     const profileRes = await getMyProfile();
-    profileLoaded.value = !!profileRes.data;
+    profile = profileRes.data;
+    profileLoaded.value = !!profile;
   } catch (err) {
     profileLoaded.value = false;
   }
-  isProfileLoading.value = false;
 
-  // 2. Load Recommendations based on Role
-  if (authStore.userRole === "自由工作者") {
-    isRecoLoading.value = true;
-    try {
-      const res = await getJobRecommendations(jobLimit.value, jobOffset.value);
-      recommendedJobs.value = res.data.items || [];
-      jobTotal.value = res.data.total || 0;
-      jobHasMore.value =
-        jobOffset.value + (recommendedJobs.value.length || 0) < jobTotal.value;
-    } catch (err) {
-      ElMessage.error("Failed to load recommended jobs"); // (Updated)
-    }
-    isRecoLoading.value = false;
+  // Case 1: 沒有 Profile -> 強制引導去建立
+  if (!profileLoaded.value) {
+    guideDialog.title = "Welcome! Let's get started";
+    guideDialog.message =
+      "Please verify your profile information to start using our services. It only takes a minute!";
+    guideDialog.buttonText = "Create Profile";
+    guideDialog.action = () => router.push("/profile");
+    guideDialog.visible = true;
+    isProfileLoading.value = false;
+    return false; // 阻擋後續讀取
   }
 
-  if (authStore.userRole === "雇主") {
-    isFreelancerRecoLoading.value = true;
-    try {
-      const res = await getFreelancerRecommendations(
-        freelancerLimit.value,
-        freelancerOffset.value
-      );
-      recommendedFreelancers.value = res.data.items || [];
-      freelancerTotal.value = res.data.total || 0;
-      freelancerHasMore.value =
-        freelancerOffset.value + (recommendedFreelancers.value.length || 0) <
-        freelancerTotal.value;
-    } catch (err) {
-      ElMessage.error("Failed to load recommended freelancers"); // (Updated)
+  // Case 2: 自由工作者 -> 檢查是否有技能
+  if (authStore.userRole === "自由工作者") {
+    if (!profile.skills || profile.skills.length === 0) {
+      isFreelancerWithoutSkills.value = true;
+      guideDialog.title = "Showcase Your Skills";
+      guideDialog.message =
+        "To receive job recommendations, you need to add at least one skill tag to your profile.";
+      guideDialog.buttonText = "Add Skills";
+      // (小技巧) 我們無法直接導向 tab，但可以在 ProfileView 讀取 query param
+      guideDialog.action = () => router.push("/profile");
+      guideDialog.visible = true;
+      isProfileLoading.value = false;
+      return false;
     }
-    isFreelancerRecoLoading.value = false;
+  }
+
+  // Case 3: 雇主 -> 檢查是否有「招募中」的案件
+  if (authStore.userRole === "雇主") {
+    try {
+      const projectsRes = await getMyProjects();
+      // 檢查是否有狀態為 '招募中' 的案件
+      const activeProjects = projectsRes.data.filter(
+        (p) => p.status === "招募中"
+      );
+
+      if (activeProjects.length === 0) {
+        isEmployerWithoutJobs.value = true;
+        guideDialog.title = "Post Your First Job";
+        guideDialog.message =
+          "To receive freelancer recommendations, please post a job requirement so we can match suitable candidates.";
+        guideDialog.buttonText = "Post a Job";
+        guideDialog.action = () => router.push("/post-job");
+        guideDialog.visible = true;
+        isProfileLoading.value = false;
+        return false;
+      }
+    } catch (err) {
+      console.error("Failed to check employer projects", err);
+      // 若檢查失敗，暫不阻擋，避免 API 錯誤導致卡死
+    }
+  }
+
+  isProfileLoading.value = false;
+  return true; // 通過所有檢查
+};
+
+// Load Data
+onMounted(async () => {
+  // 1. 執行使用者狀態檢查
+  const isReady = await checkUserReadiness();
+
+  // 2. 若檢查通過，才載入推薦
+  if (isReady) {
+    if (authStore.userRole === "自由工作者") {
+      loadJobPage(0);
+    }
+    if (authStore.userRole === "雇主") {
+      loadFreelancerPage(0);
+    }
   }
 });
 
-// --- Pagination controls ---
+// --- Pagination controls (保持不變) ---
 const loadJobPage = async (newOffset) => {
   jobOffset.value = newOffset;
   isRecoLoading.value = true;
@@ -416,7 +483,7 @@ const loadJobPage = async (newOffset) => {
     jobHasMore.value =
       jobOffset.value + (recommendedJobs.value.length || 0) < jobTotal.value;
   } catch (err) {
-    ElMessage.error("Failed to load recommended jobs"); // (Updated)
+    ElMessage.error("Failed to load recommended jobs");
   }
   isRecoLoading.value = false;
 };
@@ -435,7 +502,7 @@ const loadFreelancerPage = async (newOffset) => {
       freelancerOffset.value + (recommendedFreelancers.value.length || 0) <
       freelancerTotal.value;
   } catch (err) {
-    ElMessage.error("Failed to load recommended freelancers"); // (Updated)
+    ElMessage.error("Failed to load recommended freelancers");
   }
   isFreelancerRecoLoading.value = false;
 };

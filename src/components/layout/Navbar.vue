@@ -136,13 +136,16 @@ const displayedAvatarUrl = computed(() => {
   let imageUrl = null;
   if (authStore.userRole === "雇主") {
     imageUrl = profile.value.company_logo_url;
+    console.log("Company Logo URL:", imageUrl);
   } else if (authStore.userRole === "自由工作者") {
     imageUrl = profile.value.avatar_url;
+    console.log("Avatar URL:", imageUrl);
   }
 
   // 組合 URL
   if (imageUrl) {
     if (imageUrl.startsWith("http")) {
+      console.log("Using full URL:", imageUrl);
       return imageUrl; // 已經是 GCS 完整 URL
     }
     return `${API_BASE_URL}${imageUrl}`; // 本地 /static/... URL

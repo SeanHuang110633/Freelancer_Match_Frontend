@@ -30,7 +30,8 @@
                     :model-value="profile.reputation_score"
                     disabled
                     show-score
-                    text-color="#ff9900"
+                    text-color="#a79c7fb0"
+                    void-color="#C6D1DE"
                     score-template="{value} 分"
                   />
                 </div>
@@ -41,7 +42,8 @@
                     <el-rate
                       :model-value="profile.avg_communication || 0"
                       disabled
-                      text-color="#ff9900"
+                      text-color="#a79c7fb0"
+                      void-color="#C6D1DE"
                       size="small"
                     />
                   </div>
@@ -50,7 +52,8 @@
                     <el-rate
                       :model-value="profile.avg_professionalism || 0"
                       disabled
-                      text-color="#ff9900"
+                      text-color="#a79c7fb0"
+                      void-color="#C6D1DE"
                       size="small"
                     />
                   </div>
@@ -59,7 +62,8 @@
                     <el-rate
                       :model-value="profile.avg_punctuality || 0"
                       disabled
-                      text-color="#ff9900"
+                      text-color="#a79c7fb0"
+                      void-color="#C6D1DE"
                       size="small"
                     />
                   </div>
@@ -68,7 +72,8 @@
                     <el-rate
                       :model-value="profile.avg_quality || 0"
                       disabled
-                      text-color="#ff9900"
+                      text-color="#a79c7fb0"
+                      void-color="#C6D1DE"
                       size="small"
                     />
                   </div>
@@ -121,6 +126,7 @@
                 :key="skill.tag.tag_id"
                 size="large"
                 class="skill-tag"
+                effect="plain"
               >
                 {{ skill.tag.name }}
               </el-tag>
@@ -182,7 +188,6 @@ import { UserFilled, ChatDotRound } from "@element-plus/icons-vue";
 import { useAuthStore } from "@/store/authStore.js";
 import { getMyProjects } from "@/api/project.js";
 import { createChatRoom } from "@/api/message.js";
-// (新增) 匯入 Base URL
 import { API_BASE_URL } from "@/config/env.js";
 
 const route = useRoute();
@@ -206,7 +211,6 @@ const canSayHi = computed(() => {
   return true;
 });
 
-// (新增) 解析圖片 URL
 const resolveAvatarUrl = (url) => {
   if (!url) return null;
   if (url.startsWith("http")) return url;
@@ -332,5 +336,46 @@ const confirmSayHi = async () => {
 }
 .description-content {
   white-space: pre-wrap;
+}
+
+/* --- 主題樣式覆蓋 (Theme Overrides) --- */
+
+/* Button */
+:deep(.el-button--primary) {
+  background-color: #a79c7fb0;
+  border-color: #a79c7fb0;
+
+  &:hover,
+  &:focus {
+    background-color: #7d7561b0;
+    border-color: #7d7561b0;
+  }
+}
+
+/* Rate (星星顏色) */
+:deep(.el-rate__icon.is-active) {
+  color: #a79c7fb0 !important;
+}
+
+/* Link */
+:deep(.el-link.el-link--default:hover) {
+  color: #a79c7fb0;
+}
+
+/* Tag */
+:deep(.el-tag) {
+  color: #616130;
+  border-color: #a79c7fb0;
+  background-color: rgba(167, 156, 127, 0.15);
+}
+
+/* Tabs */
+:deep(.el-tabs__item.is-active) {
+  color: #616130;
+  font-weight: bold;
+}
+
+:deep(.el-tabs__item:hover) {
+  color: #a79c7fb0;
 }
 </style>

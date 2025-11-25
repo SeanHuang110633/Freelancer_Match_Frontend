@@ -45,6 +45,18 @@
       />
     </el-form-item>
 
+    <el-form-item label="Confirm Password" prop="confirmPassword">
+      <el-input
+        v-model="form.confirmPassword"
+        type="password"
+        placeholder="Re-enter your password"
+        :prefix-icon="Lock"
+        size="large"
+        show-password
+        required
+      />
+    </el-form-item>
+
     <el-form-item label="Select your role" prop="role" class="text-center">
       <el-radio-group v-model="form.role" size="large">
         <el-radio label="Freelancer" />
@@ -84,6 +96,7 @@ const emit = defineEmits(["switch-mode"]);
 const form = ref({
   email: "",
   password: "",
+  confirmPassword: "", // 新增
   role: "Freelancer",
 });
 const isLoading = ref(false);
@@ -95,10 +108,17 @@ const handleRegister = async () => {
   errorMessage.value = "";
   successMessage.value = "";
 
+  // 新增：檢查密碼是否一致
+  if (form.value.password !== form.value.confirmPassword) {
+    errorMessage.value = "Passwords do not match. Please check again.";
+    isLoading.value = false;
+    return;
+  }
+
   try {
-    // map role value (UI uses English) to Chinese for backend
     const payload = {
-      ...form.value,
+      email: form.value.email,
+      password: form.value.password,
       role: form.value.role === "Freelancer" ? "自由工作者" : "雇主",
     };
     const response = await apiRegister(payload);
@@ -123,32 +143,39 @@ const handleRegister = async () => {
   margin-bottom: 20px;
 }
 
-/* --- 新增：從 LoginForm 複製的樣式覆蓋 --- */
+/* --- 樣式覆蓋 --- */
 
-/* 覆蓋 el-button 顏色 */
+/* 按鈕顏色 (繼承自 LoginForm 風格) */
 .el-button--primary {
   background-color: #a79c7fb0;
   border-color: #a79c7fb0;
 
-  /* hover */
   &:hover {
     background-color: #7d7561b0;
     border-color: #7d7561b0;
   }
 }
 
-/* 覆蓋 el-link 顏色 */
+/* 連結顏色 */
 .el-link--primary {
   color: #756f5e;
-  /* 去除下劃線 */
   text-decoration: none;
 
-  /* hover */
   &:hover {
     color: #616130;
     font-weight: bold;
     text-decoration: none;
   }
+}
+
+/* 新增：覆蓋 el-radio 顏色 (需使用 :deep 穿透組件樣式) */
+:deep(.el-radio__input.is-checked .el-radio__inner) {
+  border-color: #a79c7fb0;
+  background: #a79c7fb0;
+}
+
+:deep(.el-radio__input.is-checked + .el-radio__label) {
+  color: #a79c7fb0;
 }
 /* ------------------------------------- */
 </style>
