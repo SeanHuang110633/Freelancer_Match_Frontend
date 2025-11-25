@@ -66,7 +66,7 @@
     </el-form-item>
 
     <el-form-item class="text-center">
-      <span>Already have an account?</span>
+      <span style="margin-right: 20px">Already have an account?</span>
       <el-link type="primary" @click="$emit('switch-mode')">
         Go to Login
       </el-link>
@@ -76,7 +76,6 @@
 
 <script setup>
 import { ref } from "vue";
-// import { useAuthStore } from "@/store/authStore.js"; // 註冊不需要 store
 import { User, Lock } from "@element-plus/icons-vue";
 import { register as apiRegister } from "@/api/auth.js";
 
@@ -85,7 +84,7 @@ const emit = defineEmits(["switch-mode"]);
 const form = ref({
   email: "",
   password: "",
-  role: "Freelancer", // 預設角色改為英文
+  role: "Freelancer",
 });
 const isLoading = ref(false);
 const errorMessage = ref("");
@@ -103,10 +102,9 @@ const handleRegister = async () => {
       role: form.value.role === "Freelancer" ? "自由工作者" : "雇主",
     };
     const response = await apiRegister(payload);
-    // 成功訊息改為英文
+
     successMessage.value = `Account ${response.data.email} registered successfully! Please switch to login.`;
   } catch (error) {
-    // 錯誤訊息改為英文
     errorMessage.value = error.response?.data?.detail || "Registration failed";
   }
 
@@ -124,4 +122,33 @@ const handleRegister = async () => {
 .mb-20 {
   margin-bottom: 20px;
 }
+
+/* --- 新增：從 LoginForm 複製的樣式覆蓋 --- */
+
+/* 覆蓋 el-button 顏色 */
+.el-button--primary {
+  background-color: #a79c7fb0;
+  border-color: #a79c7fb0;
+
+  /* hover */
+  &:hover {
+    background-color: #7d7561b0;
+    border-color: #7d7561b0;
+  }
+}
+
+/* 覆蓋 el-link 顏色 */
+.el-link--primary {
+  color: #756f5e;
+  /* 去除下劃線 */
+  text-decoration: none;
+
+  /* hover */
+  &:hover {
+    color: #616130;
+    font-weight: bold;
+    text-decoration: none;
+  }
+}
+/* ------------------------------------- */
 </style>
