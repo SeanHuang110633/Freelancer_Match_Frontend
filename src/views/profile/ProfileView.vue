@@ -351,7 +351,6 @@ const displayedAvatarUrl = computed(() => {
     imageUrl = editForm.value.avatar_url;
   }
   if (imageUrl) {
-    console.log("友友友Image URL:", imageUrl);
     if (imageUrl.startsWith("http")) return imageUrl;
     return `${API_BASE_URL}${imageUrl}`;
   }
@@ -530,10 +529,10 @@ const handleUpdateSkills = async () => {
 </script>
 
 <style lang="scss" scoped>
-/* (保持原有的樣式設定) */
-// ...
+.profile-view-wrapper {
+  margin-top: 20px;
+}
 
-/* (新增) Avatar Uploader 樣式 */
 .avatar-uploader {
   border: 1px dashed var(--el-border-color);
   border-radius: 6px;
@@ -549,7 +548,7 @@ const handleUpdateSkills = async () => {
   background-color: #fafafa; // 淡灰背景
 
   &:hover {
-    border-color: var(--el-color-primary);
+    border-color: #a79c7fb0; /* 修改為主題色 */
   }
 }
 
@@ -588,5 +587,49 @@ const handleUpdateSkills = async () => {
   .avatar-uploader {
     border-radius: 50%; /* 如果想要圓形頭貼，可取消註解 */
   }
+}
+
+/* --- 主題樣式覆蓋 (Theme Overrides) --- */
+
+/* Button */
+:deep(.el-button--primary) {
+  background-color: #a79c7fb0;
+  border-color: #a79c7fb0;
+
+  &:hover,
+  &:focus {
+    background-color: #7d7561b0;
+    border-color: #7d7561b0;
+  }
+}
+
+/* Radio */
+:deep(.el-radio__input.is-checked .el-radio__inner) {
+  border-color: #a79c7fb0;
+  background: #a79c7fb0;
+}
+
+:deep(.el-radio__input.is-checked + .el-radio__label) {
+  color: #a79c7fb0;
+}
+
+/* Checkbox (for Skills) */
+:deep(.el-checkbox__input.is-checked .el-checkbox__inner) {
+  background-color: #a79c7fb0;
+  border-color: #a79c7fb0;
+}
+
+:deep(.el-checkbox__input.is-checked + .el-checkbox__label) {
+  color: #a79c7fb0;
+}
+
+/* Tabs */
+:deep(.el-tabs__item.is-active) {
+  color: #616130;
+  font-weight: bold;
+}
+
+:deep(.el-tabs__item:hover) {
+  color: #a79c7fb0;
 }
 </style>

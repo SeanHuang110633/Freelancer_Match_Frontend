@@ -35,7 +35,7 @@
                 <div class="card-header">
                   <span>{{ reco.project.title }}</span>
                   <el-tag type="warning" effect="light" round>
-                    Score: {{ reco.recommendation_score }}
+                    Recommendation Score: {{ reco.recommendation_score }}
                   </el-tag>
                 </div>
               </template>
@@ -131,7 +131,10 @@
                       size="small"
                       text-color="#ff9900"
                     />
-                    <span>({{ reco.profile.reputation_score }} points)</span>
+                    <span
+                      >(Reputation Score:
+                      {{ reco.profile.reputation_score }})</span
+                    >
                   </div>
                 </div>
                 <el-tag type="warning" effect="light" round class="score-tag">
